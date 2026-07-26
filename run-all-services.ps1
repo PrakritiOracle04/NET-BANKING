@@ -51,10 +51,31 @@ $services = @(
     @{ Name = 'api-gateway'; Port = 8080 }
 )
 
+function Wait-ForHealthyService([hashtable]$service) {
+    $healthUrl = "http://localhost:$($service.Port)/actuator/health"
+    $deadline = (Get-Date).AddSeconds(60)
+
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) {
+                Write-Host ("{0} is healthy." -f $service.Name) -ForegroundColor Green
+                return
+            }
+        } catch {
+            # A connection refusal is expected while Spring Boot is still starting.
+        }
+        Start-Sleep -Milliseconds 500
+    }
+
+    throw ("{0} did not become healthy within 60 seconds. Check logs\\{0}.error.log." -f $service.Name)
+}
+
 foreach ($service in $services) {
     $existing = Get-NetTCPConnection -State Listen -LocalPort $service.Port -ErrorAction SilentlyContinue
     if ($existing) {
         Write-Host ("{0} is already running on port {1}; skipped." -f $service.Name, $service.Port) -ForegroundColor Yellow
+        Wait-ForHealthyService $service
         continue
     }
 
@@ -73,6 +94,7 @@ foreach ($service in $services) {
         -WorkingDirectory (Join-Path $projectRoot $service.Name) `
         -RedirectStandardOutput $standardLog -RedirectStandardError $errorLog -WindowStyle Hidden
     Write-Host ("Started {0} on port {1}." -f $service.Name, $service.Port) -ForegroundColor Green
+    Wait-ForHealthyService $service
 }
 
-Write-Host 'All Phase 1 services are starting. Gateway: http://localhost:8080'
+Write-Host 'All Phase 1 services are healthy. Gateway: http://localhost:8080'
