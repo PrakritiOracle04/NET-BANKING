@@ -1,0 +1,27 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: branch-service
+  datasource:
+    url: ${BRANCH_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+    username: ${BRANCH_DB_USERNAME:banking_branch}
+    password: ${BRANCH_DB_PASSWORD:change-me}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+logging:
+  level:
+    com.oracle.banking.branch: INFO
