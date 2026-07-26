@@ -4,6 +4,9 @@ import com.oracle.banking.shared.constants.SecurityConstants;
 import com.oracle.banking.shared.response.ApiResponse;
 import com.oracle.banking.shared.response.ErrorResponse;
 import com.oracle.banking.shared.validation.PasswordPolicy;
+import com.oracle.banking.auth.entity.AppUser;
+import com.oracle.banking.auth.entity.Role;
+import com.oracle.banking.auth.entity.UserSession;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -106,100 +109,6 @@ public class AuthServiceApplication {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Entity
-    @Table(name = "ROLES")
-    public static class Role {
-        @Id
-        @Column(name = "ROLE_ID", length = 36)
-        private String roleId;
-        @Column(name = "ROLE_NAME", nullable = false, unique = true, length = 30)
-        private String roleName;
-
-        protected Role() {
-        }
-
-        Role(String roleId, String roleName) {
-            this.roleId = roleId;
-            this.roleName = roleName;
-        }
-
-        public String getRoleName() {
-            return roleName;
-        }
-    }
-
-    @Entity
-    @Table(name = "APP_USER")
-    public static class AppUser {
-        @Id
-        @Column(name = "USER_ID", length = 36)
-        private String userId;
-        @ManyToOne(optional = false)
-        private Role role;
-        @Column(name = "USERNAME", nullable = false, unique = true, length = 60)
-        private String username;
-        @Column(name = "EMAIL", nullable = false, unique = true, length = 120)
-        private String email;
-        @Column(name = "PHONE", nullable = false, length = 20)
-        private String phone;
-        @Column(name = "PASSWORD_HASH", nullable = false, length = 100)
-        private String passwordHash;
-        @Column(name = "STATUS", nullable = false, length = 20)
-        private String status;
-        @Column(name = "CREATED_AT", nullable = false)
-        private Instant createdAt;
-
-        protected AppUser() {
-        }
-
-        AppUser(String userId, Role role, String username, String email, String phone, String passwordHash) {
-            this.userId = userId;
-            this.role = role;
-            this.username = username;
-            this.email = email;
-            this.phone = phone;
-            this.passwordHash = passwordHash;
-            this.status = "ACTIVE";
-            this.createdAt = Instant.now();
-        }
-
-        public String getUserId() { return userId; }
-        public Role getRole() { return role; }
-        public String getUsername() { return username; }
-        public String getEmail() { return email; }
-        public String getPasswordHash() { return passwordHash; }
-        public String getStatus() { return status; }
-    }
-
-    @Entity
-    @Table(name = "USER_SESSION")
-    public static class UserSession {
-        @Id
-        @Column(name = "SESSION_ID", length = 36)
-        private String sessionId;
-        @Column(name = "USER_ID", nullable = false, length = 36)
-        private String userId;
-        @Column(name = "LOGIN_AT", nullable = false)
-        private Instant loginAt;
-        @Column(name = "EXPIRES_AT", nullable = false)
-        private Instant expiresAt;
-        @Column(name = "STATUS", nullable = false, length = 20)
-        private String status;
-
-        protected UserSession() {
-        }
-
-        UserSession(String userId, Instant expiresAt) {
-            this.sessionId = UUID.randomUUID().toString();
-            this.userId = userId;
-            this.loginAt = Instant.now();
-            this.expiresAt = expiresAt;
-            this.status = "ACTIVE";
-        }
-
-        void invalidate() { this.status = "INVALIDATED"; }
     }
 
     public interface AppUserRepository extends JpaRepository<AppUser, String> {

@@ -3,6 +3,7 @@ package com.oracle.banking.branch;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import com.oracle.banking.shared.response.ApiResponse;
 import com.oracle.banking.shared.response.ErrorResponse;
+import com.oracle.banking.branch.entity.Branch;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -82,46 +83,19 @@ public class BranchServiceApplication {
         };
     }
 
-    @Entity
-    @Table(name = "BRANCH")
-    public static class Branch {
-        @Id
-        @Column(name = "BRANCH_ID", length = 36)
-        private String branchId;
-        @Column(name = "BRANCH_NAME", nullable = false, length = 120)
-        private String branchName;
-        @Column(name = "IFSC", nullable = false, unique = true, length = 11)
-        private String ifsc;
-        @Column(name = "CITY", nullable = false, length = 80)
-        private String city;
-        @Column(name = "STATE", nullable = false, length = 80)
-        private String state;
-
-        protected Branch() {
-        }
-
-        Branch(String branchId, String branchName, String ifsc, String city, String state) {
-            this.branchId = branchId;
-            this.branchName = branchName;
-            this.ifsc = ifsc;
-            this.city = city;
-            this.state = state;
-        }
-    }
-
     public interface BranchRepository extends JpaRepository<Branch, String> {
         Optional<Branch> findByIfsc(String ifsc);
     }
 
     public record BranchSummaryResponse(String branchId, String branchName, String ifsc, String city) {
         static BranchSummaryResponse from(Branch branch) {
-            return new BranchSummaryResponse(branch.branchId, branch.branchName, branch.ifsc, branch.city);
+            return new BranchSummaryResponse(branch.getBranchId(), branch.getBranchName(), branch.getIfsc(), branch.getCity());
         }
     }
 
     public record BranchResponse(String branchId, String branchName, String ifsc, String city, String state) {
         static BranchResponse from(Branch branch) {
-            return new BranchResponse(branch.branchId, branch.branchName, branch.ifsc, branch.city, branch.state);
+            return new BranchResponse(branch.getBranchId(), branch.getBranchName(), branch.getIfsc(), branch.getCity(), branch.getState());
         }
     }
 

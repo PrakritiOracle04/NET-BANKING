@@ -3,6 +3,7 @@ package com.oracle.banking.customer;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import com.oracle.banking.shared.response.ApiResponse;
 import com.oracle.banking.shared.response.ErrorResponse;
+import com.oracle.banking.customer.entity.CustomerProfile;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -80,69 +81,6 @@ public class CustomerServiceApplication {
         SpringApplication.run(CustomerServiceApplication.class, args);
     }
 
-    @Entity
-    @Table(name = "CUSTOMER_PROFILE")
-    public static class CustomerProfile {
-        @Id
-        @Column(name = "CUSTOMER_ID", length = 36)
-        private String customerId;
-        @Column(name = "USER_ID", nullable = false, unique = true, length = 36)
-        private String userId;
-        @Column(name = "FULL_NAME", nullable = false, length = 120)
-        private String fullName;
-        @Column(name = "EMAIL", nullable = false, length = 120)
-        private String email;
-        @Column(name = "PHONE", nullable = false, length = 20)
-        private String phone;
-        @Column(name = "ADDRESS_LINE1", length = 160)
-        private String addressLine1;
-        @Column(name = "ADDRESS_LINE2", length = 160)
-        private String addressLine2;
-        @Column(name = "CITY", length = 80)
-        private String city;
-        @Column(name = "STATE", length = 80)
-        private String state;
-        @Column(name = "COUNTRY", length = 80)
-        private String country;
-        @Column(name = "POSTAL_CODE", length = 20)
-        private String postalCode;
-        @Column(name = "KYC_STATUS", nullable = false, length = 20)
-        private String kycStatus;
-        @Column(name = "PROFILE_STATUS", nullable = false, length = 20)
-        private String profileStatus;
-        @Column(name = "CREATED_AT", nullable = false)
-        private Instant createdAt;
-        @Column(name = "UPDATED_AT", nullable = false)
-        private Instant updatedAt;
-
-        protected CustomerProfile() {
-        }
-
-        CustomerProfile(String userId, String fullName, String email, String phone) {
-            this.customerId = UUID.randomUUID().toString();
-            this.userId = userId;
-            this.fullName = fullName;
-            this.email = email;
-            this.phone = phone;
-            this.kycStatus = "PENDING";
-            this.profileStatus = "ACTIVE";
-            this.createdAt = Instant.now();
-            this.updatedAt = this.createdAt;
-        }
-
-        void update(CustomerProfileRequest request) {
-            this.fullName = request.fullName();
-            this.phone = request.phone();
-            this.addressLine1 = request.addressLine1();
-            this.addressLine2 = request.addressLine2();
-            this.city = request.city();
-            this.state = request.state();
-            this.country = request.country();
-            this.postalCode = request.postalCode();
-            this.updatedAt = Instant.now();
-        }
-    }
-
     public interface CustomerProfileRepository extends JpaRepository<CustomerProfile, String> {
         Optional<CustomerProfile> findByUserId(String userId);
         boolean existsByUserId(String userId);
@@ -164,9 +102,9 @@ public class CustomerServiceApplication {
                                           String addressLine1, String addressLine2, String city, String state,
                                           String country, String postalCode, String kycStatus, String profileStatus) {
         static CustomerProfileResponse from(CustomerProfile profile) {
-            return new CustomerProfileResponse(profile.customerId, profile.userId, profile.fullName, profile.email,
-                    profile.phone, profile.addressLine1, profile.addressLine2, profile.city, profile.state,
-                    profile.country, profile.postalCode, profile.kycStatus, profile.profileStatus);
+            return new CustomerProfileResponse(profile.getCustomerId(), profile.getUserId(), profile.getFullName(), profile.getEmail(),
+                    profile.getPhone(), profile.getAddressLine1(), profile.getAddressLine2(), profile.getCity(), profile.getState(),
+                    profile.getCountry(), profile.getPostalCode(), profile.getKycStatus(), profile.getProfileStatus());
         }
     }
 

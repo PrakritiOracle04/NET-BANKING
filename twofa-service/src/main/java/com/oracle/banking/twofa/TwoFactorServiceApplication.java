@@ -7,6 +7,7 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import com.oracle.banking.shared.response.ApiResponse;
 import com.oracle.banking.shared.response.ErrorResponse;
+import com.oracle.banking.twofa.entity.AuthFactor;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -86,42 +87,6 @@ import java.util.UUID;
 public class TwoFactorServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(TwoFactorServiceApplication.class, args);
-    }
-
-    @Entity
-    @Table(name = "AUTH_FACTOR")
-    public static class AuthFactor {
-        @Id
-        @Column(name = "AUTH_FACTOR_ID", length = 36)
-        private String authFactorId;
-        @Column(name = "USER_ID", nullable = false, unique = true, length = 36)
-        private String userId;
-        @Column(name = "FACTOR_TYPE", nullable = false, length = 30)
-        private String factorType;
-        @Column(name = "SECRET_ENCRYPTED", nullable = false, length = 1000)
-        private String secretEncrypted;
-        @Column(name = "ENABLED", nullable = false)
-        private boolean enabled;
-        @Column(name = "VERIFIED", nullable = false)
-        private boolean verified;
-        @Column(name = "CREATED_AT", nullable = false)
-        private Instant createdAt;
-
-        protected AuthFactor() {
-        }
-
-        AuthFactor(String userId, String secretEncrypted) {
-            this.authFactorId = UUID.randomUUID().toString();
-            this.userId = userId;
-            this.factorType = "TOTP";
-            this.secretEncrypted = secretEncrypted;
-            this.createdAt = Instant.now();
-        }
-
-        void enable() { this.enabled = true; this.verified = true; }
-        void disable() { this.enabled = false; this.verified = false; }
-        boolean isEnabled() { return enabled; }
-        String encryptedSecret() { return secretEncrypted; }
     }
 
     public interface AuthFactorRepository extends JpaRepository<AuthFactor, String> {
@@ -321,8 +286,8 @@ public class TwoFactorServiceApplication {
             log.info("2FA setup started for user {}", userId);
             String secret = totp.createSecret();
             AuthFactor factor = factors.findByUserId(userId).orElseGet(() -> new AuthFactor(userId, protector.encrypt(secret)));
-            if (factor.authFactorId != null) {
-                factor.secretEncrypted = protector.encrypt(secret);
+            if (factors.findByUserId(userId).isPresent()) {
+                factor.replaceSecret(protector.encrypt(secret));
                 factor.disable();
             }
             factors.save(factor);
