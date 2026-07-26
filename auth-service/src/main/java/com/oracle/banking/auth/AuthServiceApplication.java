@@ -39,6 +39,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -63,6 +64,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,10 +283,17 @@ public class AuthServiceApplication {
         }
 
         void verify(String userId, String otpCode) {
-            client.post().uri(twoFactorServiceUrl + "/internal/twofa/verify")
-                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalKey)
-                    .body(new OtpVerification(userId, otpCode))
-                    .retrieve().toBodilessEntity();
+            try {
+                client.post().uri(twoFactorServiceUrl + "/internal/twofa/verify")
+                        .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalKey)
+                        .body(new OtpVerification(userId, otpCode))
+                        .retrieve().toBodilessEntity();
+            } catch (RestClientResponseException ex) {
+                if (ex.getStatusCode() == HttpStatus.BAD_REQUEST) {
+                    throw new TwoFactorException("Invalid OTP code");
+                }
+                throw ex;
+            }
         }
     }
 
@@ -373,8 +382,10 @@ public class AuthServiceApplication {
         }
 
         @PostMapping("/login")
-        ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-            return ApiResponse.success("Login successful", service.login(request));
+        ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(ApiResponse.success("Login successful", service.login(request)));
         }
 
         @PostMapping("/logout")
