@@ -21,6 +21,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -203,6 +204,11 @@ public class BranchServiceApplication {
         @ExceptionHandler(ResourceNotFoundException.class)
         ResponseEntity<ErrorResponse> missing(ResourceNotFoundException ex, HttpServletRequest request) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ex.getMessage(), request.getRequestURI()));
+        }
+
+        @ExceptionHandler(ConstraintViolationException.class)
+        ResponseEntity<ErrorResponse> invalid(ConstraintViolationException ex, HttpServletRequest request) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse.of("Invalid request", request.getRequestURI()));
         }
 
         @ExceptionHandler(Exception.class)

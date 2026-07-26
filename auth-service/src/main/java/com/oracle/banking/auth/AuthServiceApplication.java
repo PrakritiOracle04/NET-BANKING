@@ -407,9 +407,14 @@ public class AuthServiceApplication {
             return error(HttpStatus.CONFLICT, ex.getMessage(), request);
         }
 
-        @ExceptionHandler({BadRequestException.class, TwoFactorException.class, BadCredentialsException.class})
+        @ExceptionHandler({BadRequestException.class, TwoFactorException.class})
         ResponseEntity<ErrorResponse> badRequest(RuntimeException ex, HttpServletRequest request) {
             return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(BadCredentialsException.class)
+        ResponseEntity<ErrorResponse> badCredentials(BadCredentialsException ex, HttpServletRequest request) {
+            return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
         }
 
         @ExceptionHandler(ResourceNotFoundException.class)

@@ -36,6 +36,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -149,6 +150,8 @@ public class CustomerServiceApplication {
                     .authorizeHttpRequests(requests -> requests
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health", "/internal/**").permitAll()
                             .anyRequest().authenticated())
+                    .exceptionHandling(exceptions -> exceptions
+                            .authenticationEntryPoint((request, response, error) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
                     .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                     .build();
         }
@@ -254,6 +257,11 @@ public class CustomerServiceApplication {
         @ExceptionHandler(UnauthorizedException.class)
         ResponseEntity<ErrorResponse> unauthorized(UnauthorizedException ex, HttpServletRequest request) {
             return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(AccessDeniedException.class)
+        ResponseEntity<ErrorResponse> forbidden(AccessDeniedException ex, HttpServletRequest request) {
+            return error(HttpStatus.FORBIDDEN, "Access denied", request);
         }
 
         @ExceptionHandler(Exception.class)
