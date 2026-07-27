@@ -1,0 +1,37 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+    username: ${AUTH_DB_USERNAME:banking_auth}
+    password: ${AUTH_DB_PASSWORD:change-me}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  jackson:
+    default-property-inclusion: non_null
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:30}
+
+services:
+  customer:
+    base-url: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+  twofa:
+    base-url: ${TWOFA_SERVICE_URL:http://localhost:8082}
+  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+logging:
+  level:
+    com.oracle.banking.auth: INFO

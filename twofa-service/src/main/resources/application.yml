@@ -1,0 +1,34 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: twofa-service
+  datasource:
+    url: ${TWOFA_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+    username: ${TWOFA_DB_USERNAME:banking_twofa}
+    password: ${TWOFA_DB_PASSWORD:change-me}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+
+twofa:
+  issuer: ${TWOFA_ISSUER:Oracle Internet Banking}
+  encryption-key: ${TWOFA_ENCRYPTION_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+
+services:
+  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+logging:
+  level:
+    com.oracle.banking.twofa: INFO
