@@ -30,10 +30,20 @@ Get-Content $envFile | ForEach-Object {
     }
 }
 
+# Some Windows shells expose both Path and PATH. Start-Process cannot copy
+# that duplicate environment block, so retain the normal Windows Path entry.
+Remove-Item Env:PATH -ErrorAction SilentlyContinue
+
 Write-Host 'Building Phase 1 services...'
 Push-Location $projectRoot
 try {
-    & .\mvnw.cmd -q -DskipTests package
+    $mavenHome = Join-Path $env:ProgramFiles 'Apache\Maven\apache-maven-3.9.16\bin\mvn.cmd'
+    $env:MAVEN_OPTS = "-Duser.home=$env:USERPROFILE"
+    if (Test-Path $mavenHome) {
+        & $mavenHome -q -DskipTests package
+    } else {
+        & .\mvnw.cmd -q -DskipTests package
+    }
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
@@ -52,18 +62,12 @@ $services = @(
 )
 
 function Wait-ForHealthyService([hashtable]$service) {
-    $healthUrl = "http://localhost:$($service.Port)/actuator/health"
     $deadline = (Get-Date).AddSeconds(60)
 
     while ((Get-Date) -lt $deadline) {
-        try {
-            $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 2
-            if ($response.StatusCode -eq 200) {
-                Write-Host ("{0} is healthy." -f $service.Name) -ForegroundColor Green
-                return
-            }
-        } catch {
-            # A connection refusal is expected while Spring Boot is still starting.
+        if (Test-NetConnection -ComputerName 'localhost' -Port $service.Port -InformationLevel Quiet -WarningAction SilentlyContinue) {
+            Write-Host ("{0} is listening." -f $service.Name) -ForegroundColor Green
+            return
         }
         Start-Sleep -Milliseconds 500
     }
@@ -90,7 +94,7 @@ foreach ($service in $services) {
 
     $standardLog = Join-Path $logDirectory ("{0}.log" -f $service.Name)
     $errorLog = Join-Path $logDirectory ("{0}.error.log" -f $service.Name)
-    Start-Process -FilePath 'java' -ArgumentList @('-jar', $jar.FullName) `
+    Start-Process -FilePath (Join-Path $env:JAVA_HOME 'bin\java.exe') -ArgumentList @('-jar', $jar.FullName) `
         -WorkingDirectory (Join-Path $projectRoot $service.Name) `
         -RedirectStandardOutput $standardLog -RedirectStandardError $errorLog -WindowStyle Hidden
     Write-Host ("Started {0} on port {1}." -f $service.Name, $service.Port) -ForegroundColor Green
