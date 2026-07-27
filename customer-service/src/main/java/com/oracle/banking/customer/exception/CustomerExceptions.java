@@ -1,0 +1,2 @@
+package com.oracle.banking.customer.exception;
+public final class CustomerExceptions {private CustomerExceptions(){} public static class NotFound extends RuntimeException{public NotFound(String m){super(m);}} public static class Duplicate extends RuntimeException{public Duplicate(String m){super(m);}} public static class Unauthorized extends RuntimeException{public Unauthorized(String m){super(m);}}}

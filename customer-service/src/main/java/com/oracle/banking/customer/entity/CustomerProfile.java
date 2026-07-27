@@ -1,6 +1,6 @@
 package com.oracle.banking.customer.entity;
 
-import com.oracle.banking.customer.CustomerServiceApplication.CustomerProfileRequest;
+import com.oracle.banking.customer.dto.CustomerDtos.Update;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -59,7 +59,7 @@ public class CustomerProfile {
         this.updatedAt = this.createdAt;
     }
 
-    public void update(CustomerProfileRequest request) {
+    public void update(Update request) {
         this.fullName = request.fullName();
         this.phone = request.phone();
         this.addressLine1 = request.addressLine1();
