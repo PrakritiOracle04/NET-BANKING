@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class BankingWorkflowService {
@@ -140,11 +141,16 @@ public class BankingWorkflowService {
             if (response == null || !response.verified()) {
                 throw new BadRequest("Beneficiary is not verified");
             }
-        } catch (BadRequest ex) {
-            throw ex;
-        } catch (RestClientException ex) {
+          } catch (BadRequest ex) {
+              throw ex;
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().is4xxClientError()) {
+                throw new BadRequest("Beneficiary is not verified");
+            }
             throw new DownstreamFailure("Beneficiary verification failed");
-        }
+          } catch (RestClientException ex) {
+              throw new DownstreamFailure("Beneficiary verification failed");
+          }
     }
 
     private void credit(String accountId, java.math.BigDecimal amount, String reference, String description) {
