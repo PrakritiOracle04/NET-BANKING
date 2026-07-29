@@ -1,37 +1,45 @@
-# Internet Banking Platform — Phase 1
+# Internet Banking Platform
 
-Phase 1 is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. The repository root is the Maven aggregator; each service below is independently runnable.
+This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. The repository root is the Maven aggregator; each service below is independently runnable.
 
 | Module | Port | Responsibility |
 | --- | ---: | --- |
 | `api-gateway` | 8080 | CORS, request logging, and API routing |
-| `shared-kernel` | — | Reusable response contracts, constants, and validation utilities |
+| `shared-kernel` | - | Reusable response contracts, constants, and validation utilities |
 | `auth-service` | 8081 | Registration, BCrypt login, JWT, RBAC, and user sessions |
 | `twofa-service` | 8082 | TOTP setup, QR generation, OTP verification, and encrypted factors |
 | `customer-service` | 8083 | Customer profile lifecycle |
 | `branch-service` | 8084 | Read-only branch lookup APIs |
+| `account-service` | 8085 | Accounts, balances, status, credit/debit ownership |
+| `beneficiary-service` | 8086 | Beneficiary CRUD, status, transfer verification |
+| `transaction-service` | 8087 | Transaction records, history, search, statements |
+| `banking-workflow-service` | 8088 | Deposit, withdrawal, and transfer orchestration |
 
-The original entity files remain in `src/main/java/com/oracle/banking/entity` as the requested reference set. Phase 1 service models are implemented only inside their owning service:
+The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service.
 
-- Auth: `AppUser`, `Role`, `UserSession`
-- 2FA: `AuthFactor`
-- Customer: `CustomerProfile`
-- Branch: `Branch`
-
-No service accesses another service’s repository or table. Auth-to-customer creation and auth-to-2FA checks use REST endpoints protected with an internal API key.
+No service accesses another service's repository or table. Cross-service work uses REST endpoints protected with an internal API key. The banking workflow service owns no tables; it coordinates synchronous REST calls and publishes Kafka events only after successful business operations.
 
 ## Configuration
 
-Every service has an `application.yml` with Oracle 23ai connection settings controlled by environment variables. Set distinct database credentials for:
+Every data-owning service has an `application.yml` with Oracle connection settings controlled by environment variables. For local development, all services can point to the same fresh Oracle schema/user. The tables are created and updated from the Java entity classes through Hibernate `ddl-auto: update`.
+
+Provide database credentials for:
 
 - `AUTH_DB_*`
 - `TWOFA_DB_*`
 - `CUSTOMER_DB_*`
 - `BRANCH_DB_*`
+- `ACCOUNT_DB_*`
+- `BENEFICIARY_DB_*`
+- `TRANSACTION_DB_*`
 
-Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for auth, 2FA, and customer communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
+Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
 
-## Build and run
+For Phase 2 events, set `KAFKA_BOOTSTRAP_SERVERS`; it defaults to `localhost:9092`. Kafka is used only for asynchronous events such as `transaction-created`, `account-debited`, and `account-credited`.
+
+Use `.env.example` as the key template for local setup. Create the Oracle user/schema yourself, then start the services; there are no manual table migration scripts for Phase 2.
+
+## Build and Run
 
 PowerShell:
 
@@ -40,10 +48,16 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
 .\mvnw.cmd -DskipTests package
 ```
 
-Run each application from its module:
+Start all services:
 
 ```powershell
-.\mvnw.cmd -pl auth-service spring-boot:run
+.\run-all-services.ps1
+```
+
+Stop all services:
+
+```powershell
+.\stop-all-services.ps1
 ```
 
 Swagger is available at `/swagger-ui` on each service. Send external requests through the gateway:
@@ -52,5 +66,9 @@ Swagger is available at `/swagger-ui` on each service. Send external requests th
 - `/api/2fa/**`
 - `/api/customers/**`
 - `/api/branches/**`
+- `/api/accounts/**`
+- `/api/beneficiaries/**`
+- `/api/transactions/**`
+- `/api/banking/**`
 
-The gateway forwards these paths to ports 8081–8084 respectively.
+The gateway forwards these paths to their owning services on ports 8081-8088.
