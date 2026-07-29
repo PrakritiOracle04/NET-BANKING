@@ -5,7 +5,11 @@ $services = @(
     @{ Name = 'Auth Service'; Port = 8081 },
     @{ Name = '2FA Service'; Port = 8082 },
     @{ Name = 'Customer Service'; Port = 8083 },
-    @{ Name = 'Branch Service'; Port = 8084 }
+    @{ Name = 'Branch Service'; Port = 8084 },
+    @{ Name = 'Account Service'; Port = 8085 },
+    @{ Name = 'Beneficiary Service'; Port = 8086 },
+    @{ Name = 'Transaction Service'; Port = 8087 },
+    @{ Name = 'Banking Workflow Service'; Port = 8088 }
 )
 
 foreach ($service in $services) {
