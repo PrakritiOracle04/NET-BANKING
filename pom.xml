@@ -24,10 +24,6 @@
         <module>twofa-service</module>
         <module>customer-service</module>
         <module>branch-service</module>
-        <module>account-service</module>
-        <module>beneficiary-service</module>
-        <module>transaction-service</module>
-        <module>banking-workflow-service</module>
     </modules>
 
     <properties>
