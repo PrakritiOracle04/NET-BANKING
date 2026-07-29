@@ -1,0 +1,69 @@
+services:
+  customer-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: customer-service
+    env_file: .env
+    environment:
+      CUSTOMER_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      SECURITY_JWT_SECRET: ${JWT_SECRET}
+
+  twofa-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: twofa-service
+    env_file: .env
+    environment:
+      TWOFA_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      SECURITY_JWT_SECRET: ${JWT_SECRET}
+
+  branch-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: branch-service
+    env_file: .env
+    environment:
+      BRANCH_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      SECURITY_JWT_SECRET: ${JWT_SECRET}
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: auth-service
+    env_file: .env
+    environment:
+      AUTH_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      CUSTOMER_SERVICE_URL: http://customer-service:8083
+      TWOFA_SERVICE_URL: http://twofa-service:8082
+      SECURITY_JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - customer-service
+      - twofa-service
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: api-gateway
+    env_file: .env
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      TWOFA_SERVICE_URL: http://twofa-service:8082
+      CUSTOMER_SERVICE_URL: http://customer-service:8083
+      BRANCH_SERVICE_URL: http://branch-service:8084
+    depends_on:
+      - auth-service
+      - twofa-service
+      - customer-service
+      - branch-service
+    ports:
+      - "8080:8080"
