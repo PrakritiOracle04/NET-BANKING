@@ -55,6 +55,13 @@ public class InternalAccountController {
         return service.debit(id, request);
     }
 
+    @PostMapping("/{id}/movements/{reference}/reverse")
+    BalanceResponse reverse(@PathVariable String id, @PathVariable String reference,
+            @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String key) {
+        check(key);
+        return service.reverseMovement(id, reference);
+    }
+
     private void check(String key) {
         if (!internalApiKey.equals(key)) {
             throw new Forbidden("Invalid internal API key");

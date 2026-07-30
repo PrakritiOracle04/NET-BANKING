@@ -10,13 +10,16 @@ import com.oracle.banking.account.dto.AccountDtos.MoneyMovementRequest;
 import com.oracle.banking.account.dto.AccountDtos.TransactionSummaryResponse;
 import com.oracle.banking.account.dto.AccountDtos.UpdateAccountStatusRequest;
 import com.oracle.banking.account.entity.Account;
+import com.oracle.banking.account.entity.AccountMovement;
 import com.oracle.banking.account.entity.AccountStatus;
+import com.oracle.banking.account.entity.BalanceOperation;
 import com.oracle.banking.account.exception.AccountExceptions.BadRequest;
 import com.oracle.banking.account.exception.AccountExceptions.Duplicate;
 import com.oracle.banking.account.exception.AccountExceptions.Forbidden;
 import com.oracle.banking.account.exception.AccountExceptions.InsufficientBalance;
 import com.oracle.banking.account.exception.AccountExceptions.NotFound;
 import com.oracle.banking.account.repository.AccountRepository;
+import com.oracle.banking.account.repository.AccountMovementRepository;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,13 +37,15 @@ public class AccountService {
     private static final Logger log = LoggerFactory.getLogger(AccountService.class);
 
     private final AccountRepository repository;
+    private final AccountMovementRepository movements;
     private final RestClient transactionClient;
     private final String internalApiKey;
 
-    public AccountService(AccountRepository repository, RestClient.Builder restClientBuilder,
+    public AccountService(AccountRepository repository, AccountMovementRepository movements, RestClient.Builder restClientBuilder,
             @Value("${services.transaction-service-url}") String transactionServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey) {
         this.repository = repository;
+        this.movements = movements;
         this.transactionClient = restClientBuilder.baseUrl(transactionServiceUrl).build();
         this.internalApiKey = internalApiKey;
     }
@@ -121,26 +126,68 @@ public class AccountService {
 
     @Transactional
     public BalanceResponse credit(String accountId, MoneyMovementRequest request) {
-        Account account = find(accountId);
-        requirePositive(request.amount());
-        requireActive(account);
-        account.setAvailableBalance(account.getAvailableBalance().add(request.amount()));
-        account.setLedgerBalance(account.getLedgerBalance().add(request.amount()));
-        log.info("Credited account {} reference {}", accountId, request.referenceNumber());
-        return BalanceResponse.from(repository.save(account));
+        return applyMovement(accountId, request, BalanceOperation.CREDIT);
     }
 
     @Transactional
     public BalanceResponse debit(String accountId, MoneyMovementRequest request) {
-        Account account = find(accountId);
+        return applyMovement(accountId, request, BalanceOperation.DEBIT);
+    }
+
+    @Transactional
+    public BalanceResponse reverseMovement(String accountId, String referenceNumber) {
+        Account account = findLocked(accountId);
+        AccountMovement original = movements.findLockedByAccountIdAndReferenceNumber(accountId, referenceNumber)
+                .orElseThrow(() -> new NotFound("Account movement not found"));
+        if (original.isReversed()) {
+            return BalanceResponse.from(account);
+        }
+        if (original.getOperation() == BalanceOperation.CREDIT) {
+            if (account.getAvailableBalance().compareTo(original.getAmount()) < 0) {
+                throw new InsufficientBalance("Insufficient balance to reverse credit");
+            }
+            account.setAvailableBalance(account.getAvailableBalance().subtract(original.getAmount()));
+            account.setLedgerBalance(account.getLedgerBalance().subtract(original.getAmount()));
+        } else {
+            account.setAvailableBalance(account.getAvailableBalance().add(original.getAmount()));
+            account.setLedgerBalance(account.getLedgerBalance().add(original.getAmount()));
+        }
+        String reversalReference = referenceNumber + ":REVERSAL";
+        original.markReversed(reversalReference);
+        movements.save(new AccountMovement(accountId, reversalReference,
+                original.getOperation() == BalanceOperation.CREDIT ? BalanceOperation.DEBIT : BalanceOperation.CREDIT,
+                original.getAmount(), "Saga compensation for " + referenceNumber));
+        log.info("Reversed account movement {} for account {}", referenceNumber, accountId);
+        return BalanceResponse.from(repository.save(account));
+    }
+
+    private BalanceResponse applyMovement(String accountId, MoneyMovementRequest request, BalanceOperation operation) {
+        requirePositive(request.amount());
+        if (request.referenceNumber() == null || request.referenceNumber().isBlank()) {
+            throw new BadRequest("referenceNumber is required");
+        }
+        Account account = findLocked(accountId);
+        AccountMovement existing = movements.findLockedByAccountIdAndReferenceNumber(accountId, request.referenceNumber()).orElse(null);
+        if (existing != null) {
+            if (existing.getOperation() != operation || existing.getAmount().compareTo(request.amount()) != 0) {
+                throw new BadRequest("Movement reference does not match the original request");
+            }
+            return BalanceResponse.from(find(accountId));
+        }
         requirePositive(request.amount());
         requireActive(account);
-        if (account.getAvailableBalance().compareTo(request.amount()) < 0) {
+        if (operation == BalanceOperation.DEBIT && account.getAvailableBalance().compareTo(request.amount()) < 0) {
             throw new InsufficientBalance("Insufficient balance");
         }
-        account.setAvailableBalance(account.getAvailableBalance().subtract(request.amount()));
-        account.setLedgerBalance(account.getLedgerBalance().subtract(request.amount()));
-        log.info("Debited account {} reference {}", accountId, request.referenceNumber());
+        if (operation == BalanceOperation.CREDIT) {
+            account.setAvailableBalance(account.getAvailableBalance().add(request.amount()));
+            account.setLedgerBalance(account.getLedgerBalance().add(request.amount()));
+        } else {
+            account.setAvailableBalance(account.getAvailableBalance().subtract(request.amount()));
+            account.setLedgerBalance(account.getLedgerBalance().subtract(request.amount()));
+        }
+        movements.save(new AccountMovement(accountId, request.referenceNumber(), operation, request.amount(), request.description()));
+        log.info("{} account {} reference {}", operation, accountId, request.referenceNumber());
         return BalanceResponse.from(repository.save(account));
     }
 
@@ -154,6 +201,10 @@ public class AccountService {
 
     private Account find(String accountId) {
         return repository.findById(accountId).orElseThrow(() -> new NotFound("Account not found"));
+    }
+
+    private Account findLocked(String accountId) {
+        return repository.findLockedByAccountId(accountId).orElseThrow(() -> new NotFound("Account not found"));
     }
 
     private void requirePositive(BigDecimal amount) {

@@ -1,6 +1,6 @@
-# Phase 1 API & Service Guide
+# Internet Banking API & Service Guide
 
-This is the starting point for developers integrating with, operating, or extending the Phase 1 Internet Banking platform.
+This is the starting point for developers integrating with, operating, or extending the Internet Banking platform.
 
 ## 1. Local topology
 
@@ -11,6 +11,10 @@ This is the starting point for developers integrating with, operating, or extend
 | 2FA Service | 8082 | `/api/2fa/**` | TOTP enrolment, QR code generation, OTP verification |
 | Customer Service | 8083 | `/api/customers/**` | Customer profile creation, retrieval, update |
 | Branch Service | 8084 | `/api/branches/**` | Read-only branch directory and IFSC lookup |
+| Account Service | 8085 | `/api/accounts/**` | Account lifecycle, balances, and mini statements |
+| Beneficiary Service | 8086 | `/api/beneficiaries/**` | Saved transfer destinations and their verification state |
+| Transaction Service | 8087 | `/api/transactions/**` | Transaction history, search, and statements |
+| Banking Workflow Service | 8088 | `/api/banking/**` | Saga orchestration for deposits, withdrawals, and transfers |
 | Shared Kernel | — | — | Shared API response contracts, security constants, password policy |
 
 External clients should call the API Gateway at `http://localhost:8080`. The gateway forwards each public prefix unchanged to its owning service.
@@ -22,14 +26,18 @@ Client
        -> 2FA :8082        /api/2fa/**
        -> Customer :8083   /api/customers/**
        -> Branch :8084     /api/branches/**
+       -> Account :8085    /api/accounts/**
+       -> Beneficiary :8086 /api/beneficiaries/**
+       -> Transaction :8087 /api/transactions/**
+       -> Workflow :8088   /api/banking/**
 ```
 
 ## 2. Start the platform
 
 1. Ensure `.env` exists in the repository root and contains the Oracle credentials and shared secrets.
-2. Double-click `run-all-services.cmd`, or run `./run-all-services.cmd` from the root terminal.
-3. The launcher discovers JDK 17 when `JAVA_HOME` is not set, builds the Maven modules, and starts all five services.
-4. Review `logs/<service>.log` and `logs/<service>.error.log` if a service does not start.
+2. Package the services with Maven, then run `podman-compose up -d --build` from the repository root.
+3. The compose network connects services by their service names; the existing Oracle container is reached through `host.containers.internal`.
+4. Use `podman-compose logs -f <service-name>` if a service does not start.
 
 Health checks are available directly on every service:
 
@@ -149,6 +157,36 @@ Customer profiles include `customerId`, `userId`, full name, email, phone, addre
 
 Branch results contain `branchId`, `branchName`, `ifsc`, `city`; individual lookups also include `state`.
 
+### Account, beneficiary, and transaction services
+
+| Route family | Authentication | What it does |
+| --- | --- | --- |
+| `GET, POST /api/accounts` and `GET /api/accounts/{id}` | Bearer JWT | Lists, creates, and retrieves accounts. |
+| `GET /api/accounts/{id}/balance` | Bearer JWT | Returns the current balance. |
+| `GET /api/accounts/{id}/mini-statement` | Bearer JWT | Returns recent account activity. Account Service requests the read-only recent-transaction data from Transaction Service. |
+| `PUT /api/accounts/{id}/status` | Bearer JWT with `ADMIN` role | Updates an account's status. |
+| `GET, POST /api/beneficiaries`, `GET /api/beneficiaries/{id}` | Bearer JWT | Lists, creates, and retrieves the current customer's beneficiaries. |
+| `PUT, DELETE /api/beneficiaries/{id}` | Bearer JWT | Updates or removes a beneficiary owned by the current customer. |
+| `PUT /api/beneficiaries/{id}/status` | Bearer JWT with `ADMIN` role | Changes beneficiary verification status. |
+| `GET /api/transactions/**` | Bearer JWT | Retrieves transaction history, a transaction by ID, account history, filtered search results, or statements. |
+
+### Banking Workflow Service (Saga-backed money operations)
+
+These are the only public routes that move money. Every request must include a new, client-generated `Idempotency-Key` value. Reuse the same key only to retry the exact same request after a timeout: a completed workflow returns the original result, while a failed/compensated workflow returns `409 Conflict` so the client must use a new key.
+
+```http
+Authorization: Bearer <token>
+Idempotency-Key: 6c0b9bca-7b04-46cb-8fb0-0eb951afc8ef
+```
+
+| Method and route | What it does | Body |
+| --- | --- | --- |
+| `POST /api/banking/deposit` | Credits an owned active account and records a credit transaction. | `accountId`, `amount`, optional `description` |
+| `POST /api/banking/withdraw` | Debits an owned active account and records a debit transaction. | `accountId`, `amount`, optional `description` |
+| `POST /api/banking/transfer` | Validates ownership, destination account, and verified beneficiary; debits source, credits destination, then records both transactions. | `sourceAccountId`, `destinationAccountNumber`, `amount`, optional `description` |
+
+The workflow is the sole coordinator: it calls Account, Beneficiary, and Transaction services directly. None of those services calls the next service in a money-moving workflow.
+
 ## 5. Service dependencies and flows
 
 | Calling service | Called service | Internal route | Why it is needed |
@@ -156,6 +194,9 @@ Branch results contain `branchId`, `branchName`, `ifsc`, `city`; individual look
 | Auth | Customer | `POST http://localhost:8083/internal/customers` | Creates the customer profile during registration. |
 | Auth | 2FA | `GET http://localhost:8082/internal/twofa/users/{userId}/status` | Determines whether login requires an OTP. |
 | Auth | 2FA | `POST http://localhost:8082/internal/twofa/verify` | Verifies the OTP as part of a 2FA-enabled login. |
+| Workflow | Account | `GET/POST http://localhost:8085/internal/accounts/**` | Validates accounts, applies idempotent balance movements, and reverses movements during compensation. |
+| Workflow | Beneficiary | `POST http://localhost:8086/internal/beneficiaries/verify-transfer` | Ensures a transfer destination is a verified beneficiary. |
+| Workflow | Transaction | `POST http://localhost:8087/internal/transactions/**` | Records transactions and marks any recorded transaction `REVERSED` during compensation. |
 
 ### Registration flow
 
@@ -181,6 +222,21 @@ Auth creates UserSession and returns JWT
 
 2FA Service must be running for login because Auth always checks 2FA status.
 
+### Saga workflow and compensation
+
+```text
+Gateway -> Workflow -> Account (debit/credit) -> Transaction
+                         |
+                         +-> Beneficiary verification (transfer only)
+
+If a later step fails:
+Workflow -> Transaction reverse (when recorded)
+         -> Account reverse destination movement (transfer only)
+         -> Account reverse source movement
+```
+
+`BANKING_WORKFLOWS` stores each workflow's idempotency key, state, references, and compensation progress. `ACCOUNT_MOVEMENTS` stores every applied account movement and its reversal state. This makes a new Saga route extensible: add its type and steps to Workflow Service, persist each successful step before the next remote call, and add its compensating action in reverse order. `COMPENSATION_PENDING` workflows retry on the Workflow Service scheduler; clients receive `503 Service Unavailable` until recovery succeeds.
+
 ## 6. Data ownership
 
 Each service owns its own entity model and database tables; no service reads another service repository or table.
@@ -191,12 +247,16 @@ Each service owns its own entity model and database tables; no service reads ano
 | 2FA | `AuthFactor` |
 | Customer | `CustomerProfile` |
 | Branch | `Branch` |
+| Account | `Account`, `AccountMovement` |
+| Beneficiary | `Beneficiary` |
+| Transaction | `BankTransaction` |
+| Banking Workflow | `WorkflowSaga` (`BANKING_WORKFLOWS`) |
 
 `legacy-entity-reference/` retains the original entity files as reference material only. It is outside a Maven source root and is not compiled by Phase 1.
 
 ## 7. Configuration needed by a developer
 
-Keep secrets only in the ignored `.env` file. Use `.env.example` as the shareable template.
+Keep secrets only in the ignored `.env` file.
 
 | Variable | Used by | Notes |
 | --- | --- | --- |

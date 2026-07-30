@@ -98,8 +98,16 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse record(RecordTransactionRequest request) {
-        if (request.referenceNumber() != null && repository.existsByReferenceNumber(request.referenceNumber())) {
-            throw new Duplicate("Transaction reference already exists");
+        if (request.referenceNumber() != null) {
+            BankTransaction existing = repository.findByReferenceNumber(request.referenceNumber()).orElse(null);
+            if (existing != null) {
+                if (!existing.getAccountId().equals(request.accountId())
+                        || existing.getAmount().compareTo(request.amount()) != 0
+                        || existing.getDebitCredit() != request.debitCredit()) {
+                    throw new Duplicate("Transaction reference does not match the original request");
+                }
+                return TransactionResponse.from(existing);
+            }
         }
         BankTransaction transaction = new BankTransaction();
         transaction.setAccountId(request.accountId());
@@ -116,6 +124,17 @@ public class TransactionService {
         BankTransaction saved = repository.save(transaction);
         log.info("Recorded transaction {} for account {}", saved.getTransactionId(), saved.getAccountId());
         return TransactionResponse.from(saved);
+    }
+
+    @Transactional
+    public TransactionResponse reverse(String referenceNumber) {
+        BankTransaction transaction = repository.findByReferenceNumber(referenceNumber)
+                .orElseThrow(() -> new NotFound("Transaction not found"));
+        if (transaction.getStatus() != TransactionStatus.REVERSED) {
+            transaction.setStatus(TransactionStatus.REVERSED);
+            log.info("Reversed transaction {} reference {}", transaction.getTransactionId(), referenceNumber);
+        }
+        return TransactionResponse.from(repository.save(transaction));
     }
 
     private Specification<BankTransaction> searchSpec(

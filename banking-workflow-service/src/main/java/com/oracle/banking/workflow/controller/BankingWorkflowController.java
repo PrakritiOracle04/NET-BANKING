@@ -14,6 +14,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,18 +27,21 @@ public class BankingWorkflowController {
     }
 
     @PostMapping("/transfer")
-    ApiResponse<TransferResponse> transfer(Authentication authentication, @Valid @RequestBody TransferRequest request) {
-        return ApiResponse.success("Transfer completed", service.transfer(authentication.getName(), isAdmin(authentication), request));
+    ApiResponse<TransferResponse> transfer(Authentication authentication,
+            @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody TransferRequest request) {
+        return ApiResponse.success("Transfer completed", service.transfer(authentication.getName(), isAdmin(authentication), idempotencyKey, request));
     }
 
     @PostMapping("/deposit")
-    ApiResponse<DepositResponse> deposit(Authentication authentication, @Valid @RequestBody DepositRequest request) {
-        return ApiResponse.success("Deposit completed", service.deposit(authentication.getName(), isAdmin(authentication), request));
+    ApiResponse<DepositResponse> deposit(Authentication authentication,
+            @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody DepositRequest request) {
+        return ApiResponse.success("Deposit completed", service.deposit(authentication.getName(), isAdmin(authentication), idempotencyKey, request));
     }
 
     @PostMapping("/withdraw")
-    ApiResponse<WithdrawResponse> withdraw(Authentication authentication, @Valid @RequestBody WithdrawRequest request) {
-        return ApiResponse.success("Withdrawal completed", service.withdraw(authentication.getName(), isAdmin(authentication), request));
+    ApiResponse<WithdrawResponse> withdraw(Authentication authentication,
+            @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody WithdrawRequest request) {
+        return ApiResponse.success("Withdrawal completed", service.withdraw(authentication.getName(), isAdmin(authentication), idempotencyKey, request));
     }
 
     private boolean isAdmin(Authentication authentication) {

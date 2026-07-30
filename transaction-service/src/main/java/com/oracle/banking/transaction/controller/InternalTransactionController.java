@@ -43,6 +43,13 @@ public class InternalTransactionController {
         return service.record(request);
     }
 
+    @PostMapping("/{reference}/reverse")
+    TransactionResponse reverse(@PathVariable String reference,
+            @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String key) {
+        check(key);
+        return service.reverse(reference);
+    }
+
     @GetMapping("/accounts/{accountId}/recent")
     List<TransactionSummaryResponse> recent(@PathVariable String accountId,
             @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String key,

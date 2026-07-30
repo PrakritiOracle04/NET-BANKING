@@ -4,6 +4,15 @@ server:
 spring:
   application:
     name: banking-workflow-service
+  datasource:
+    url: ${WORKFLOW_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+    username: ${WORKFLOW_DB_USERNAME:BANKING}
+    password: ${WORKFLOW_DB_PASSWORD:change-me}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -26,6 +35,8 @@ services:
   transaction-service-url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
 
 banking:
+  saga:
+    recovery-delay-ms: ${SAGA_RECOVERY_DELAY_MS:30000}
   events:
     transaction-created-topic: ${TRANSACTION_CREATED_TOPIC:transaction-created}
     account-debited-topic: ${ACCOUNT_DEBITED_TOPIC:account-debited}

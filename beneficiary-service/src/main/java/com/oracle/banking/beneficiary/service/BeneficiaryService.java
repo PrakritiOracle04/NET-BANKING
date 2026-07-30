@@ -8,9 +8,7 @@ import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.UpdateBeneficiaryStatu
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.VerifyBeneficiaryRequest;
 import com.oracle.banking.beneficiary.entity.Beneficiary;
 import com.oracle.banking.beneficiary.entity.BeneficiaryStatus;
-import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.BadRequest;
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.Duplicate;
-import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.Forbidden;
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.NotFound;
 import com.oracle.banking.beneficiary.repository.BeneficiaryRepository;
 import java.util.List;
@@ -92,12 +90,6 @@ public class BeneficiaryService {
     public BeneficiaryVerificationResponse verifyForTransfer(VerifyBeneficiaryRequest request) {
         Beneficiary beneficiary = repository.findByCustomerUsernameAndAccountNumber(request.customerUsername(), request.destinationAccountNumber())
                 .orElseThrow(() -> new NotFound("Beneficiary not found"));
-        if (beneficiary.getStatus() == BeneficiaryStatus.BLOCKED) {
-            throw new Forbidden("Beneficiary is blocked");
-        }
-        if (beneficiary.getStatus() != BeneficiaryStatus.VERIFIED) {
-            throw new BadRequest("Beneficiary is not verified");
-        }
         return BeneficiaryVerificationResponse.from(beneficiary);
     }
 
