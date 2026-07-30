@@ -1,0 +1,13 @@
+package com.oracle.banking.workflow.repository;
+
+import com.oracle.banking.workflow.entity.WorkflowSaga;
+import com.oracle.banking.workflow.entity.WorkflowStatus;
+import com.oracle.banking.workflow.entity.WorkflowType;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface WorkflowSagaRepository extends JpaRepository<WorkflowSaga, String> {
+    Optional<WorkflowSaga> findByCustomerUsernameAndIdempotencyKeyAndWorkflowType(String customerUsername, String idempotencyKey, WorkflowType workflowType);
+    List<WorkflowSaga> findByStatus(WorkflowStatus status);
+}

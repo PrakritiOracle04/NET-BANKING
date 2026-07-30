@@ -73,6 +73,7 @@ services:
         SERVICE: banking-workflow-service
     env_file: .env
     environment:
+      WORKFLOW_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
       ACCOUNT_SERVICE_URL: http://account-service:8085
       BENEFICIARY_SERVICE_URL: http://beneficiary-service:8086
       TRANSACTION_SERVICE_URL: http://transaction-service:8087

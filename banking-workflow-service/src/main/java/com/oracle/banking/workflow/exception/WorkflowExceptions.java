@@ -14,4 +14,12 @@ public final class WorkflowExceptions {
     public static class DownstreamFailure extends RuntimeException {
         public DownstreamFailure(String message) { super(message); }
     }
+
+    public static class Conflict extends RuntimeException {
+        public Conflict(String message) { super(message); }
+    }
+
+    public static class CompensationPending extends RuntimeException {
+        public CompensationPending(String message) { super(message); }
+    }
 }

@@ -4,12 +4,15 @@ import com.oracle.banking.shared.response.ErrorResponse;
 import com.oracle.banking.workflow.exception.WorkflowExceptions.BadRequest;
 import com.oracle.banking.workflow.exception.WorkflowExceptions.DownstreamFailure;
 import com.oracle.banking.workflow.exception.WorkflowExceptions.Forbidden;
+import com.oracle.banking.workflow.exception.WorkflowExceptions.Conflict;
+import com.oracle.banking.workflow.exception.WorkflowExceptions.CompensationPending;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -30,7 +33,17 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    @ExceptionHandler(Conflict.class)
+    ResponseEntity<ErrorResponse> conflict(Conflict ex, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(CompensationPending.class)
+    ResponseEntity<ErrorResponse> compensationPending(CompensationPending ex, HttpServletRequest request) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class, MissingRequestHeaderException.class})
     ResponseEntity<ErrorResponse> validation(Exception ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "Invalid request", request);
     }
