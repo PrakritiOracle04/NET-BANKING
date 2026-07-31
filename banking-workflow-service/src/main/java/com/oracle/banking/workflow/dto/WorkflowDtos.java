@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 public final class WorkflowDtos {
     private WorkflowDtos() {}
@@ -93,5 +94,6 @@ public final class WorkflowDtos {
             Instant transactionDate
     ) {}
 
-    public record DomainEvent(String eventType, String referenceNumber, String accountId, BigDecimal amount, String status, Instant occurredAt) {}
+    public record DomainEvent(String eventType, String referenceNumber, String accountId, BigDecimal amount, String status, Instant occurredAt,
+            String recipient, String templateName, Map<String, String> variables) {}
 }

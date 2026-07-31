@@ -33,6 +33,7 @@ services:
   account-service-url: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
   beneficiary-service-url: ${BENEFICIARY_SERVICE_URL:http://localhost:8086}
   transaction-service-url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
 
 banking:
   saga:

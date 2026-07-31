@@ -39,6 +39,7 @@ public class WorkflowEventPublisher {
     }
 
     private void publish(String topic, DomainEvent event) {
+        if (event == null) return;
         try {
             kafkaTemplate.send(topic, event.referenceNumber(), event)
                     .whenComplete((result, ex) -> {
