@@ -28,9 +28,6 @@ public final class NotificationDtos {
             String notificationId,
             String recipient,
             String subject,
-            String type,
-            String sourceEvent,
-            String referenceId,
             NotificationStatus status,
             int retryCount,
             Instant createdAt,
@@ -42,20 +39,9 @@ public final class NotificationDtos {
             String recipient,
             String subject,
             String type,
-            String sourceEvent,
-            String referenceId,
             NotificationStatus status,
             int retryCount,
             Instant createdAt,
             Instant sentAt) {
-    }
-
-    public record DeliveryAttemptResponse(
-            String deliveryLogId,
-            int attemptNumber,
-            String status,
-            String failureReason,
-            String smtpResponse,
-            Instant timestamp) {
     }
 }

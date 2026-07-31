@@ -1,7 +1,6 @@
 package com.oracle.banking.notification.service;
 
 import com.oracle.banking.notification.dto.NotificationDtos.EmailRequest;
-import com.oracle.banking.notification.dto.NotificationDtos.EmailResponse;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,32 +28,45 @@ public class NotificationKafkaListener {
             "security-alert"
     })
     public void consume(Map<String, Object> event) {
-        String type = String.valueOf(event.getOrDefault("eventType", "generic-notification"));
+        String eventType = String.valueOf(
+                event.getOrDefault("eventType", "generic-notification"));
         Object recipient = event.get("recipient");
+
         if (recipient == null) {
-            log.warn("Kafka email skipped eventType={} reason=missing-recipient", type);
+            log.warn(
+                    "Received {} event without recipient; notification was not sent",
+                    eventType);
             return;
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, String> variables = event.get("variables") instanceof Map<?, ?> raw
-                ? (Map<String, String>) (Map<?, ?>) raw
-                : Map.of("message", String.valueOf(event.getOrDefault("message", type)));
+        Map<String, String> variables = extractVariables(event, eventType);
+        String templateName = String.valueOf(
+                event.getOrDefault("templateName", "GENERIC_NOTIFICATION"));
+        String referenceNumber = String.valueOf(
+                event.getOrDefault("referenceNumber", ""));
 
-        String template = String.valueOf(event.getOrDefault("templateName", "GENERIC_NOTIFICATION"));
-        String reference = String.valueOf(event.getOrDefault("referenceNumber", ""));
-        EmailResponse response = service.send(new EmailRequest(
+        EmailRequest request = new EmailRequest(
                 String.valueOf(recipient),
-                template,
+                templateName,
                 variables,
-                type,
-                reference));
+                eventType,
+                referenceNumber);
+        service.send(request);
 
-        log.info(
-                "Kafka email processed eventType={} reference={} notificationId={} status={}",
-                type,
-                reference,
-                response.notificationId(),
-                response.status());
+        log.info("Processed Kafka notification event {}", eventType);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> extractVariables(
+            Map<String, Object> event,
+            String eventType) {
+        Object variables = event.get("variables");
+        if (variables instanceof Map<?, ?> rawVariables) {
+            return (Map<String, String>) (Map<?, ?>) rawVariables;
+        }
+
+        return Map.of(
+                "message",
+                String.valueOf(event.getOrDefault("message", eventType)));
     }
 }

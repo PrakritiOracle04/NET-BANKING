@@ -198,10 +198,8 @@ Notification Service is the platform's only SMTP client. Other services must pub
 | `POST /api/notifications/email/send` | Bearer JWT | Renders a named template with supplied variables, attempts SMTP delivery, and stores delivery state. Body: `recipient`, `templateName`, optional `variables`, `sourceEvent`, `referenceId`. |
 | `POST /api/notifications/email/test` | Bearer JWT | Sends a test email using the generic template. Body: `recipient`, optional `variables`. |
 | `POST /api/notifications/email/test-kafka` | Bearer JWT | Publishes a test event to `transaction-created`; Notification Service then consumes it and sends the generic email asynchronously. Body: `recipient`, optional `variables`. Returns the Kafka test reference. |
-| `GET /api/notifications/email/by-reference/{referenceId}` | Bearer JWT | Traces a Kafka/business reference to its email notification and final SMTP status. |
-| `GET /api/notifications/email/{id}/delivery-attempts` | Bearer JWT | Returns every SMTP attempt, including its attempt number, status, timestamp, SMTP response, or failure reason. |
-| `GET /api/notifications/email/{id}` | Bearer JWT | Returns a notification's event source, reference, recipient, subject, status, retry count, and timestamps. |
-| `GET /api/notifications/email/history` | Bearer JWT | Returns persisted notification history with event source and reference, newest first. |
+| `GET /api/notifications/email/{id}` | Bearer JWT | Returns a notification's recipient, subject, status, retry count, and timestamps. |
+| `GET /api/notifications/email/history` | Bearer JWT | Returns persisted notification history, newest first. |
 | `POST /api/notifications/email/{id}/retry` | Bearer JWT | Starts a manual retry for a notification that was not sent. |
 | `GET /api/notifications/email/failed` | Bearer JWT | Lists notifications in `FAILED` state. |
 | `GET /api/notifications/email/pending` | Bearer JWT | Lists notifications in `PENDING` state. |
@@ -274,25 +272,6 @@ Client -> Gateway -> Notification Service -> Template Renderer -> SMTP -> Recipi
 
 Kafka handling is asynchronous: a producer never waits for SMTP delivery. Notification Service writes an `EMAIL_NOTIFICATION` record, attempts delivery, and records every attempt in `EMAIL_DELIVERY_LOG`. Temporary failures enter `RETRYING` and are retried by the Notification Service scheduler. SMTP credentials stay only in the ignored `.env` file.
 
-### Trace a Kafka email yourself
-
-1. Trigger a login, registration, workflow, or `POST /api/notifications/email/test-kafka`.
-2. Call `GET /api/notifications/email/history` and locate the row by `sourceEvent` or `referenceId`.
-3. Call `GET /api/notifications/email/by-reference/{referenceId}` to inspect that exact notification.
-4. Call `GET /api/notifications/email/{notificationId}/delivery-attempts` to distinguish Kafka consumption from SMTP delivery.
-5. For a live text stream, run `podman logs -f net-banking_auth-service_1` and `podman logs -f net-banking_notification-service_1` in separate terminals.
-
-The expected trace is:
-
-```text
-Auth/Workflow publishes eventType + reference
-    -> Notification logs Kafka email processed + notificationId
-    -> history/by-reference shows SENT, RETRYING, or FAILED
-    -> delivery-attempts shows SMTP accepted message or the exact transport failure
-```
-
-`SENT` means the SMTP server accepted the message. Final inbox placement is controlled by the receiving mail provider.
-
 ## 6. Data ownership
 
 Each service owns its own entity model and database tables; no service reads another service repository or table.
@@ -342,5 +321,5 @@ Keep secrets only in the ignored `.env` file.
 | Internal call rejects its key | Ensure Auth, 2FA, and Customer use exactly the same `INTERNAL_API_KEY`. |
 | Duplicate registration error | Choose a new username and email; both must be unique in Auth Service. |
 | JAR starts but database actions fail | Confirm Oracle is running and the relevant `*_DB_*` values in `.env` point to the expected service/database. |
-| Notification status is `FAILED` or `RETRYING` | Call `GET /api/notifications/email/{id}/delivery-attempts`. Check SMTP host, port, app password, sender address, TLS settings, and outbound port reachability. For Gmail, use a Google App Password rather than the account password. |
+| Notification status is `FAILED` or `RETRYING` | Check SMTP host, port, app password, sender address, TLS settings, and outbound port reachability. For Gmail, use a Google App Password rather than the account password. |
 | Notification Service cannot consume Kafka events | Confirm Kafka advertises `host.containers.internal:9092`, and Auth, Workflow, and Notification use `KAFKA_BOOTSTRAP_SERVERS=host.containers.internal:9092`. |
