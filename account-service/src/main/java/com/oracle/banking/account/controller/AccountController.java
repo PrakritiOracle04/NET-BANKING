@@ -39,8 +39,8 @@ public class AccountController {
 
     @GetMapping
     ApiResponse<List<AccountSummaryResponse>> accounts(Authentication authentication,
-            @RequestParam(required = false) String customerUsername) {
-        return ApiResponse.success("Accounts", service.accountsFor(authentication.getName(), isAdmin(authentication), customerUsername));
+            @RequestParam(required = false) String customerUserId) {
+        return ApiResponse.success("Accounts", service.accountsFor(authentication.getName(), isAdmin(authentication), customerUserId));
     }
 
     @GetMapping("/{id}")

@@ -6,12 +6,22 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "EMAIL_NOTIFICATION")
+@Table(
+        name = "EMAIL_NOTIFICATION",
+        indexes = {
+            @Index(
+                    name = "IX_NOTIFICATION_STATUS_CREATED",
+                    columnList = "STATUS, CREATED_AT DESC"),
+            @Index(
+                    name = "IX_NOTIFICATION_CREATED",
+                    columnList = "CREATED_AT DESC")
+        })
 public class EmailNotification {
     @Id
     @Column(name = "NOTIFICATION_ID", length = 36)

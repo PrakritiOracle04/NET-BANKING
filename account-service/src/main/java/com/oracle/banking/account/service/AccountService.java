@@ -50,25 +50,25 @@ public class AccountService {
         this.internalApiKey = internalApiKey;
     }
 
-    public List<AccountSummaryResponse> accountsFor(String username, boolean admin, String customerUsername) {
-        if (admin && customerUsername == null) {
+    public List<AccountSummaryResponse> accountsFor(String userId, boolean admin, String customerUserId) {
+        if (admin && customerUserId == null) {
             return repository.findAll().stream().map(AccountSummaryResponse::from).toList();
         }
-        String owner = admin ? customerUsername : username;
-        return repository.findByCustomerUsername(owner).stream().map(AccountSummaryResponse::from).toList();
+        String ownerUserId = admin ? customerUserId : userId;
+        return repository.findByCustomerUserId(ownerUserId).stream().map(AccountSummaryResponse::from).toList();
     }
 
-    public AccountDetailsResponse details(String accountId, String username, boolean admin) {
-        Account account = findOwnedOrAdmin(accountId, username, admin);
+    public AccountDetailsResponse details(String accountId, String userId, boolean admin) {
+        Account account = findOwnedOrAdmin(accountId, userId, admin);
         return AccountDetailsResponse.from(account);
     }
 
-    public BalanceResponse balance(String accountId, String username, boolean admin) {
-        return BalanceResponse.from(findOwnedOrAdmin(accountId, username, admin));
+    public BalanceResponse balance(String accountId, String userId, boolean admin) {
+        return BalanceResponse.from(findOwnedOrAdmin(accountId, userId, admin));
     }
 
-    public MiniStatementResponse miniStatement(String accountId, String username, boolean admin, int limit) {
-        Account account = findOwnedOrAdmin(accountId, username, admin);
+    public MiniStatementResponse miniStatement(String accountId, String userId, boolean admin, int limit) {
+        Account account = findOwnedOrAdmin(accountId, userId, admin);
         List<TransactionSummaryResponse> transactions;
         try {
             transactions = transactionClient.get()
@@ -94,7 +94,7 @@ public class AccountService {
             throw new BadRequest("Initial balance cannot be negative");
         }
         Account account = new Account();
-        account.setCustomerUsername(request.customerUsername());
+        account.setCustomerUserId(request.customerUserId());
         account.setAccountNumber(request.accountNumber());
         account.setAccountType(request.accountType());
         account.setAvailableBalance(request.initialBalance());
@@ -103,7 +103,7 @@ public class AccountService {
         account.setStatus(AccountStatus.ACTIVE);
         account.setCreatedVia("ADMIN");
         Account saved = repository.save(account);
-        log.info("Created account {} for customer {}", saved.getAccountId(), saved.getCustomerUsername());
+        log.info("Created account {} for customer user ID {}", saved.getAccountId(), saved.getCustomerUserId());
         return AccountDetailsResponse.from(saved);
     }
 
@@ -191,9 +191,9 @@ public class AccountService {
         return BalanceResponse.from(repository.save(account));
     }
 
-    private Account findOwnedOrAdmin(String accountId, String username, boolean admin) {
+    private Account findOwnedOrAdmin(String accountId, String userId, boolean admin) {
         Account account = find(accountId);
-        if (!admin && !account.getCustomerUsername().equals(username)) {
+        if (!admin && !account.getCustomerUserId().equals(userId)) {
             throw new Forbidden("Account does not belong to authenticated customer");
         }
         return account;

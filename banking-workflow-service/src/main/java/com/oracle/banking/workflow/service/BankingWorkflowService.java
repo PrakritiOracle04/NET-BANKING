@@ -62,13 +62,13 @@ public class BankingWorkflowService {
         this.internalApiKey = internalApiKey;
     }
 
-    public DepositResponse deposit(String username, boolean admin, String idempotencyKey, DepositRequest request) {
-        WorkflowSaga saga = begin(username, idempotencyKey, WorkflowType.DEPOSIT, "DEP", request.accountId(), null, request.amount(), request.description());
+    public DepositResponse deposit(String userId, boolean admin, String idempotencyKey, DepositRequest request) {
+        InternalAccountValidationResponse account = validateAccount(request.accountId());
+        requireOwnerOrAdmin(account, userId, admin);
+        requireActive(account);
+        WorkflowSaga saga = begin(account.customerUserId(), idempotencyKey, WorkflowType.DEPOSIT, "DEP", request.accountId(), null, request.amount(), request.description());
         if (saga.getStatus() == WorkflowStatus.COMPLETED) return depositResponse(saga);
         try {
-            InternalAccountValidationResponse account = validateAccount(request.accountId());
-            requireOwnerOrAdmin(account, username, admin);
-            requireActive(account);
             String movementReference = saga.getReferenceNumber() + ":CREDIT";
             saga.sourceMovementPlanned(movementReference);
             save(saga);
@@ -90,14 +90,14 @@ public class BankingWorkflowService {
         }
     }
 
-    public WithdrawResponse withdraw(String username, boolean admin, String idempotencyKey, WithdrawRequest request) {
-        WorkflowSaga saga = begin(username, idempotencyKey, WorkflowType.WITHDRAWAL, "WDR", request.accountId(), null, request.amount(), request.description());
+    public WithdrawResponse withdraw(String userId, boolean admin, String idempotencyKey, WithdrawRequest request) {
+        InternalAccountValidationResponse account = validateAccount(request.accountId());
+        requireOwnerOrAdmin(account, userId, admin);
+        requireActive(account);
+        requireSufficientBalance(account, request.amount());
+        WorkflowSaga saga = begin(account.customerUserId(), idempotencyKey, WorkflowType.WITHDRAWAL, "WDR", request.accountId(), null, request.amount(), request.description());
         if (saga.getStatus() == WorkflowStatus.COMPLETED) return withdrawResponse(saga);
         try {
-            InternalAccountValidationResponse account = validateAccount(request.accountId());
-            requireOwnerOrAdmin(account, username, admin);
-            requireActive(account);
-            requireSufficientBalance(account, request.amount());
             String movementReference = saga.getReferenceNumber() + ":DEBIT";
             saga.sourceMovementPlanned(movementReference);
             save(saga);
@@ -119,19 +119,18 @@ public class BankingWorkflowService {
         }
     }
 
-    public TransferResponse transfer(String username, boolean admin, String idempotencyKey, TransferRequest request) {
-        WorkflowSaga saga = begin(username, idempotencyKey, WorkflowType.TRANSFER, "TRF", request.sourceAccountId(), request.destinationAccountNumber(), request.amount(), request.description());
+    public TransferResponse transfer(String userId, boolean admin, String idempotencyKey, TransferRequest request) {
+        InternalAccountValidationResponse source = validateAccount(request.sourceAccountId());
+        InternalAccountValidationResponse destination = validateAccountByNumber(request.destinationAccountNumber());
+        requireOwnerOrAdmin(source, userId, admin);
+        requireActive(source);
+        requireActive(destination);
+        requireDifferentAccounts(source, destination);
+        requireSufficientBalance(source, request.amount());
+        verifyBeneficiary(source.customerUserId(), destination.accountNumber());
+        WorkflowSaga saga = begin(source.customerUserId(), idempotencyKey, WorkflowType.TRANSFER, "TRF", request.sourceAccountId(), request.destinationAccountNumber(), request.amount(), request.description());
         if (saga.getStatus() == WorkflowStatus.COMPLETED) return transferResponse(saga);
         try {
-            InternalAccountValidationResponse source = validateAccount(request.sourceAccountId());
-            InternalAccountValidationResponse destination = validateAccountByNumber(request.destinationAccountNumber());
-            requireOwnerOrAdmin(source, username, admin);
-            requireActive(source);
-            requireActive(destination);
-            requireDifferentAccounts(source, destination);
-            requireSufficientBalance(source, request.amount());
-            verifyBeneficiary(username, destination.accountNumber());
-
             String sourceMovement = saga.getReferenceNumber() + ":SOURCE:DEBIT";
             saga.sourceMovementPlanned(sourceMovement);
             save(saga);
@@ -178,10 +177,10 @@ public class BankingWorkflowService {
         });
     }
 
-    private WorkflowSaga begin(String username, String idempotencyKey, WorkflowType type, String prefix, String sourceAccountId,
+    private WorkflowSaga begin(String customerUserId, String idempotencyKey, WorkflowType type, String prefix, String sourceAccountId,
             String destinationAccountNumber, BigDecimal amount, String description) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) throw new BadRequest("Idempotency-Key is required");
-        WorkflowSaga existing = sagas.findByCustomerUsernameAndIdempotencyKeyAndWorkflowType(username, idempotencyKey, type).orElse(null);
+        WorkflowSaga existing = sagas.findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(customerUserId, idempotencyKey, type).orElse(null);
         if (existing != null) {
             if (existing.getStatus() == WorkflowStatus.COMPLETED) return existing;
             if (existing.getStatus() == WorkflowStatus.COMPENSATION_PENDING) {
@@ -189,7 +188,7 @@ public class BankingWorkflowService {
             }
             throw new Conflict("Idempotency key was already used by workflow " + existing.getReferenceNumber());
         }
-        return save(new WorkflowSaga(username, idempotencyKey, type, reference(prefix), sourceAccountId, destinationAccountNumber, amount, description));
+        return save(new WorkflowSaga(customerUserId, idempotencyKey, type, reference(prefix), sourceAccountId, destinationAccountNumber, amount, description));
     }
 
     private RuntimeException fail(WorkflowSaga saga, RuntimeException cause) {
@@ -251,11 +250,11 @@ public class BankingWorkflowService {
         }
     }
 
-    private void verifyBeneficiary(String customerUsername, String destinationAccountNumber) {
+    private void verifyBeneficiary(String customerUserId, String destinationAccountNumber) {
         try {
             BeneficiaryVerificationResponse response = beneficiaryClient.post().uri("/internal/beneficiaries/verify-transfer")
                     .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
-                    .body(new BeneficiaryVerificationRequest(customerUsername, destinationAccountNumber)).retrieve()
+                    .body(new BeneficiaryVerificationRequest(customerUserId, destinationAccountNumber)).retrieve()
                     .body(BeneficiaryVerificationResponse.class);
             if (response == null || !response.verified()) throw new BadRequest("Beneficiary is not verified");
         } catch (BadRequest ex) {
@@ -302,7 +301,7 @@ public class BankingWorkflowService {
             BigDecimal amount, String debitCredit, String description) {
         try {
             return transactionClient.post().uri("/internal/transactions").header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
-                    .body(new RecordTransactionRequest(account.accountId(), account.accountNumber(), account.customerUsername(), type,
+                    .body(new RecordTransactionRequest(account.accountId(), account.accountNumber(), account.customerUserId(), type,
                             reference, referenceType, amount, debitCredit, "SUCCESS", description, Instant.now()))
                     .retrieve().body(TransactionResponse.class);
         } catch (RestClientException ex) {
@@ -327,8 +326,8 @@ public class BankingWorkflowService {
         return sagas.saveAndFlush(saga);
     }
 
-    private void requireOwnerOrAdmin(InternalAccountValidationResponse account, String username, boolean admin) {
-        if (!admin && !account.customerUsername().equals(username)) throw new Forbidden("Account does not belong to authenticated customer");
+    private void requireOwnerOrAdmin(InternalAccountValidationResponse account, String userId, boolean admin) {
+        if (!admin && !account.customerUserId().equals(userId)) throw new Forbidden("Account does not belong to authenticated customer");
     }
 
     private void requireActive(InternalAccountValidationResponse account) {
@@ -345,7 +344,7 @@ public class BankingWorkflowService {
 
     private DomainEvent event(String eventType, WorkflowSaga saga, String accountId) {
         try {
-            String email = recipients.email(saga.getCustomerUsername());
+            String email = recipients.email(saga.getCustomerUserId());
             return new DomainEvent(eventType, saga.getReferenceNumber(), accountId, saga.getAmount(), "SUCCESS", Instant.now(), email,
                     "GENERIC_NOTIFICATION", Map.of("message", "Your banking operation " + saga.getReferenceNumber() + " completed successfully."));
         } catch (RuntimeException ex) {

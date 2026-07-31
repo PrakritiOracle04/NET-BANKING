@@ -17,7 +17,7 @@ This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. 
 
 The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service.
 
-No service accesses another service's repository or table. Cross-service work uses REST endpoints protected with an internal API key. The banking workflow service owns no tables; it coordinates synchronous REST calls and publishes Kafka events only after successful business operations.
+No service accesses another service's repository or table. Cross-service work uses REST endpoints protected with an internal API key. Customer ownership uses the immutable Auth `userId`, never the mutable username. The banking workflow service owns its Saga state table, coordinates synchronous REST calls, and publishes Kafka events only after successful business operations.
 
 ## Configuration
 

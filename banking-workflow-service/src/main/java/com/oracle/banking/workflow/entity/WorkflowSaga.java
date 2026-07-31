@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -14,13 +15,20 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "BANKING_WORKFLOWS", uniqueConstraints = @UniqueConstraint(columnNames = {"CUSTOMER_USERNAME", "IDEMPOTENCY_KEY", "WORKFLOW_TYPE"}))
+@Table(
+        name = "BANKING_WORKFLOWS",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UK_WORKFLOW_OWNER_KEY_TYPE",
+                columnNames = {"CUSTOMER_USER_ID", "IDEMPOTENCY_KEY", "WORKFLOW_TYPE"}),
+        indexes = @Index(
+                name = "IX_WORKFLOW_STATUS_UPDATED",
+                columnList = "STATUS, UPDATED_AT"))
 public class WorkflowSaga {
     @Id
     @Column(name = "WORKFLOW_ID", length = 36)
     private String workflowId;
-    @Column(name = "CUSTOMER_USERNAME", nullable = false, length = 120)
-    private String customerUsername;
+    @Column(name = "CUSTOMER_USER_ID", nullable = false, length = 36)
+    private String customerUserId;
     @Column(name = "IDEMPOTENCY_KEY", nullable = false, length = 120)
     private String idempotencyKey;
     @Enumerated(EnumType.STRING)
@@ -63,10 +71,10 @@ public class WorkflowSaga {
     protected WorkflowSaga() {
     }
 
-    public WorkflowSaga(String customerUsername, String idempotencyKey, WorkflowType workflowType, String referenceNumber,
+    public WorkflowSaga(String customerUserId, String idempotencyKey, WorkflowType workflowType, String referenceNumber,
             String sourceAccountId, String destinationAccountNumber, BigDecimal amount, String description) {
         this.workflowId = UUID.randomUUID().toString();
-        this.customerUsername = customerUsername;
+        this.customerUserId = customerUserId;
         this.idempotencyKey = idempotencyKey;
         this.workflowType = workflowType;
         this.referenceNumber = referenceNumber;
@@ -83,7 +91,7 @@ public class WorkflowSaga {
     void beforeUpdate() { updatedAt = Instant.now(); }
 
     public String getWorkflowId() { return workflowId; }
-    public String getCustomerUsername() { return customerUsername; }
+    public String getCustomerUserId() { return customerUserId; }
     public WorkflowType getWorkflowType() { return workflowType; }
     public WorkflowStatus getStatus() { return status; }
     public String getReferenceNumber() { return referenceNumber; }

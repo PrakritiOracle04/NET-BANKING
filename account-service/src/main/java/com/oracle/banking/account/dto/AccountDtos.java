@@ -16,7 +16,7 @@ public final class AccountDtos {
     private AccountDtos() {}
 
     public record CreateAccountRequest(
-            @NotBlank @Size(max = 120) String customerUsername,
+            @NotBlank @Size(max = 36) String customerUserId,
             @NotBlank @Size(max = 30) String accountNumber,
             @NotBlank @Size(max = 30) String accountType,
             @NotNull @DecimalMin(value = "0.00") BigDecimal initialBalance,
@@ -53,7 +53,7 @@ public final class AccountDtos {
 
     public record AccountDetailsResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
             String accountType,
             AccountStatus status,
@@ -66,7 +66,7 @@ public final class AccountDtos {
         public static AccountDetailsResponse from(Account account) {
             return new AccountDetailsResponse(
                     account.getAccountId(),
-                    account.getCustomerUsername(),
+                    account.getCustomerUserId(),
                     account.getAccountNumber(),
                     account.getAccountType(),
                     account.getStatus(),
@@ -99,7 +99,7 @@ public final class AccountDtos {
 
     public record InternalAccountValidationResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
             AccountStatus status,
             BigDecimal availableBalance,
@@ -108,7 +108,7 @@ public final class AccountDtos {
         public static InternalAccountValidationResponse from(Account account) {
             return new InternalAccountValidationResponse(
                     account.getAccountId(),
-                    account.getCustomerUsername(),
+                    account.getCustomerUserId(),
                     account.getAccountNumber(),
                     account.getStatus(),
                     account.getAvailableBalance(),

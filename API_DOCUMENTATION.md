@@ -172,6 +172,8 @@ Branch results contain `branchId`, `branchName`, `ifsc`, `city`; individual look
 | `PUT /api/beneficiaries/{id}/status` | Bearer JWT with `ADMIN` role | Changes beneficiary verification status. |
 | `GET /api/transactions/**` | Bearer JWT | Retrieves transaction history, a transaction by ID, account history, filtered search results, or statements. |
 
+Customer ownership is persisted and authorized using the immutable Auth `userId` from the JWT subject. Usernames remain display/login attributes only. Admin account creation and filtering use `customerUserId`; account, beneficiary, transaction, and workflow records store `CUSTOMER_USER_ID`.
+
 ### Banking Workflow Service (Saga-backed money operations)
 
 These are the only public routes that move money. Every request must include a new, client-generated `Idempotency-Key` value. Reuse the same key only to retry the exact same request after a timeout: a completed workflow returns the original result, while a failed/compensated workflow returns `409 Conflict` so the client must use a new key.

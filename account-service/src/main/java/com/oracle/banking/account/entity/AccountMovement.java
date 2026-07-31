@@ -4,7 +4,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
@@ -12,7 +16,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "ACCOUNT_MOVEMENTS", uniqueConstraints = @UniqueConstraint(columnNames = {"ACCOUNT_ID", "REFERENCE_NUMBER"}))
+@Table(
+        name = "ACCOUNT_MOVEMENTS",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UK_MOVEMENT_ACCOUNT_REFERENCE",
+                columnNames = {"ACCOUNT_ID", "REFERENCE_NUMBER"}))
 public class AccountMovement {
     @Id
     @Column(name = "MOVEMENT_ID", length = 36)
@@ -20,6 +28,14 @@ public class AccountMovement {
 
     @Column(name = "ACCOUNT_ID", nullable = false, length = 36)
     private String accountId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "ACCOUNT_ID",
+            insertable = false,
+            updatable = false,
+            foreignKey = @ForeignKey(name = "FK_MOVEMENT_ACCOUNT"))
+    private Account account;
 
     @Column(name = "REFERENCE_NUMBER", nullable = false, length = 80)
     private String referenceNumber;

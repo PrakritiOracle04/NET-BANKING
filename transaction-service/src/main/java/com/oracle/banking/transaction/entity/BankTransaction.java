@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -12,7 +13,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "BANK_TRANSACTIONS")
+@Table(
+        name = "BANK_TRANSACTIONS",
+        indexes = {
+            @Index(
+                    name = "IX_TRANSACTION_OWNER_DATE",
+                    columnList = "CUSTOMER_USER_ID, TRANSACTION_DATE DESC"),
+            @Index(
+                    name = "IX_TRANSACTION_ACCOUNT_DATE",
+                    columnList = "ACCOUNT_ID, TRANSACTION_DATE DESC")
+        })
 public class BankTransaction {
     @Id
     @Column(name = "TRANSACTION_ID", length = 36)
@@ -24,8 +34,8 @@ public class BankTransaction {
     @Column(name = "ACCOUNT_NUMBER", nullable = false, length = 30)
     private String accountNumber;
 
-    @Column(name = "CUSTOMER_USERNAME", nullable = false, length = 120)
-    private String customerUsername;
+    @Column(name = "CUSTOMER_USER_ID", nullable = false, length = 36)
+    private String customerUserId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "TRANSACTION_TYPE", nullable = false, length = 30)
@@ -72,8 +82,8 @@ public class BankTransaction {
     public void setAccountId(String accountId) { this.accountId = accountId; }
     public String getAccountNumber() { return accountNumber; }
     public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
-    public String getCustomerUsername() { return customerUsername; }
-    public void setCustomerUsername(String customerUsername) { this.customerUsername = customerUsername; }
+    public String getCustomerUserId() { return customerUserId; }
+    public void setCustomerUserId(String customerUserId) { this.customerUserId = customerUserId; }
     public TransactionType getTransactionType() { return transactionType; }
     public void setTransactionType(TransactionType transactionType) { this.transactionType = transactionType; }
     public String getReferenceNumber() { return referenceNumber; }

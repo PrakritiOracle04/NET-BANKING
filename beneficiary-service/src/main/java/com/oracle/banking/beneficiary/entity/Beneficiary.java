@@ -5,21 +5,30 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "BENEFICIARIES")
+@Table(
+        name = "BENEFICIARIES",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UK_BENEFICIARY_OWNER_ACCOUNT",
+                columnNames = {"CUSTOMER_USER_ID", "ACCOUNT_NUMBER"}),
+        indexes = @Index(
+                name = "IX_BENEFICIARY_OWNER_FAV",
+                columnList = "CUSTOMER_USER_ID, FAVOURITE"))
 public class Beneficiary {
     @Id
     @Column(name = "BENEFICIARY_ID", length = 36)
     private String beneficiaryId;
 
-    @Column(name = "CUSTOMER_USERNAME", nullable = false, length = 120)
-    private String customerUsername;
+    @Column(name = "CUSTOMER_USER_ID", nullable = false, length = 36)
+    private String customerUserId;
 
     @Column(name = "NICKNAME", nullable = false, length = 80)
     private String nickname;
@@ -67,8 +76,8 @@ public class Beneficiary {
 
     public String getBeneficiaryId() { return beneficiaryId; }
     public void setBeneficiaryId(String beneficiaryId) { this.beneficiaryId = beneficiaryId; }
-    public String getCustomerUsername() { return customerUsername; }
-    public void setCustomerUsername(String customerUsername) { this.customerUsername = customerUsername; }
+    public String getCustomerUserId() { return customerUserId; }
+    public void setCustomerUserId(String customerUserId) { this.customerUserId = customerUserId; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
     public String getBeneficiaryName() { return beneficiaryName; }

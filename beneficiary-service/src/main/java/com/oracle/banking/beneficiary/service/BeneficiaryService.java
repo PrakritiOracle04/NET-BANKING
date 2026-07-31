@@ -27,56 +27,56 @@ public class BeneficiaryService {
         this.repository = repository;
     }
 
-    public List<BeneficiarySummaryResponse> list(String username, boolean favouritesOnly) {
+    public List<BeneficiarySummaryResponse> list(String userId, boolean favouritesOnly) {
         List<Beneficiary> beneficiaries = favouritesOnly
-                ? repository.findByCustomerUsernameAndFavouriteTrue(username)
-                : repository.findByCustomerUsername(username);
+                ? repository.findByCustomerUserIdAndFavouriteTrue(userId)
+                : repository.findByCustomerUserId(userId);
         return beneficiaries.stream().map(BeneficiarySummaryResponse::from).toList();
     }
 
-    public BeneficiaryResponse byId(String id, String username, boolean admin) {
+    public BeneficiaryResponse byId(String id, String userId, boolean admin) {
         Beneficiary beneficiary = admin
                 ? find(id)
-                : repository.findByBeneficiaryIdAndCustomerUsername(id, username).orElseThrow(() -> new NotFound("Beneficiary not found"));
+                : repository.findByBeneficiaryIdAndCustomerUserId(id, userId).orElseThrow(() -> new NotFound("Beneficiary not found"));
         return BeneficiaryResponse.from(beneficiary);
     }
 
     @Transactional
-    public BeneficiaryResponse create(String username, BeneficiaryRequest request) {
-        if (repository.existsByCustomerUsernameAndNicknameIgnoreCase(username, request.nickname())) {
+    public BeneficiaryResponse create(String userId, BeneficiaryRequest request) {
+        if (repository.existsByCustomerUserIdAndNicknameIgnoreCase(userId, request.nickname())) {
             throw new Duplicate("Beneficiary nickname already exists");
         }
-        if (repository.findByCustomerUsernameAndAccountNumber(username, request.accountNumber()).isPresent()) {
+        if (repository.findByCustomerUserIdAndAccountNumber(userId, request.accountNumber()).isPresent()) {
             throw new Duplicate("Beneficiary account already exists");
         }
         Beneficiary beneficiary = new Beneficiary();
         apply(beneficiary, request);
-        beneficiary.setCustomerUsername(username);
+        beneficiary.setCustomerUserId(userId);
         beneficiary.setStatus(BeneficiaryStatus.PENDING);
         Beneficiary saved = repository.save(beneficiary);
-        log.info("Created beneficiary {} for customer {}", saved.getBeneficiaryId(), username);
+        log.info("Created beneficiary {} for customer user ID {}", saved.getBeneficiaryId(), userId);
         return BeneficiaryResponse.from(saved);
     }
 
     @Transactional
-    public BeneficiaryResponse update(String id, String username, BeneficiaryRequest request) {
-        Beneficiary beneficiary = repository.findByBeneficiaryIdAndCustomerUsername(id, username)
+    public BeneficiaryResponse update(String id, String userId, BeneficiaryRequest request) {
+        Beneficiary beneficiary = repository.findByBeneficiaryIdAndCustomerUserId(id, userId)
                 .orElseThrow(() -> new NotFound("Beneficiary not found"));
-        if (repository.existsByCustomerUsernameAndNicknameIgnoreCaseAndBeneficiaryIdNot(username, request.nickname(), id)) {
+        if (repository.existsByCustomerUserIdAndNicknameIgnoreCaseAndBeneficiaryIdNot(userId, request.nickname(), id)) {
             throw new Duplicate("Beneficiary nickname already exists");
         }
         apply(beneficiary, request);
         beneficiary.setStatus(BeneficiaryStatus.PENDING);
-        log.info("Updated beneficiary {} for customer {}", id, username);
+        log.info("Updated beneficiary {} for customer user ID {}", id, userId);
         return BeneficiaryResponse.from(repository.save(beneficiary));
     }
 
     @Transactional
-    public void delete(String id, String username) {
-        Beneficiary beneficiary = repository.findByBeneficiaryIdAndCustomerUsername(id, username)
+    public void delete(String id, String userId) {
+        Beneficiary beneficiary = repository.findByBeneficiaryIdAndCustomerUserId(id, userId)
                 .orElseThrow(() -> new NotFound("Beneficiary not found"));
         repository.delete(beneficiary);
-        log.info("Deleted beneficiary {} for customer {}", id, username);
+        log.info("Deleted beneficiary {} for customer user ID {}", id, userId);
     }
 
     @Transactional
@@ -88,7 +88,7 @@ public class BeneficiaryService {
     }
 
     public BeneficiaryVerificationResponse verifyForTransfer(VerifyBeneficiaryRequest request) {
-        Beneficiary beneficiary = repository.findByCustomerUsernameAndAccountNumber(request.customerUsername(), request.destinationAccountNumber())
+        Beneficiary beneficiary = repository.findByCustomerUserIdAndAccountNumber(request.customerUserId(), request.destinationAccountNumber())
                 .orElseThrow(() -> new NotFound("Beneficiary not found"));
         return BeneficiaryVerificationResponse.from(beneficiary);
     }

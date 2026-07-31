@@ -24,7 +24,7 @@ public final class BeneficiaryDtos {
 
     public record BeneficiaryResponse(
             String beneficiaryId,
-            String customerUsername,
+            String customerUserId,
             String nickname,
             String beneficiaryName,
             String accountId,
@@ -39,7 +39,7 @@ public final class BeneficiaryDtos {
         public static BeneficiaryResponse from(Beneficiary beneficiary) {
             return new BeneficiaryResponse(
                     beneficiary.getBeneficiaryId(),
-                    beneficiary.getCustomerUsername(),
+                    beneficiary.getCustomerUserId(),
                     beneficiary.getNickname(),
                     beneficiary.getBeneficiaryName(),
                     beneficiary.getAccountId(),
@@ -77,13 +77,13 @@ public final class BeneficiaryDtos {
     }
 
     public record VerifyBeneficiaryRequest(
-            @NotBlank String customerUsername,
+            @NotBlank @Size(max = 36) String customerUserId,
             @NotBlank String destinationAccountNumber
     ) {}
 
     public record BeneficiaryVerificationResponse(
             String beneficiaryId,
-            String customerUsername,
+            String customerUserId,
             String destinationAccountNumber,
             BeneficiaryStatus status,
             boolean verified
@@ -91,7 +91,7 @@ public final class BeneficiaryDtos {
         public static BeneficiaryVerificationResponse from(Beneficiary beneficiary) {
             return new BeneficiaryVerificationResponse(
                     beneficiary.getBeneficiaryId(),
-                    beneficiary.getCustomerUsername(),
+                    beneficiary.getCustomerUserId(),
                     beneficiary.getAccountNumber(),
                     beneficiary.getStatus(),
                     beneficiary.getStatus() == BeneficiaryStatus.VERIFIED

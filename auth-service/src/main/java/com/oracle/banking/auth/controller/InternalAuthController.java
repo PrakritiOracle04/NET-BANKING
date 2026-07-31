@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalAuthController {
     private final AuthenticationService service; private final String key;
     public InternalAuthController(AuthenticationService service, @Value("${services.internal-api-key}") String key) { this.service = service; this.key = key; }
-    @GetMapping("/{username}/notification-recipient")
-    NotificationRecipient recipient(@PathVariable String username, @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String suppliedKey) {
+    @GetMapping("/{userId}/notification-recipient")
+    NotificationRecipient recipient(@PathVariable String userId, @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String suppliedKey) {
         if (!key.equals(suppliedKey)) throw new AccessDeniedException("Invalid internal API key");
-        return service.notificationRecipient(username);
+        return service.notificationRecipient(userId);
     }
 }

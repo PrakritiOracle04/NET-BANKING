@@ -46,7 +46,7 @@ public final class WorkflowDtos {
 
     public record InternalAccountValidationResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
             String status,
             BigDecimal availableBalance,
@@ -55,11 +55,11 @@ public final class WorkflowDtos {
 
     public record MoneyMovementRequest(BigDecimal amount, String referenceNumber, String description) {}
 
-    public record BeneficiaryVerificationRequest(String customerUsername, String destinationAccountNumber) {}
+    public record BeneficiaryVerificationRequest(String customerUserId, String destinationAccountNumber) {}
 
     public record BeneficiaryVerificationResponse(
             String beneficiaryId,
-            String customerUsername,
+            String customerUserId,
             String destinationAccountNumber,
             String status,
             boolean verified
@@ -68,7 +68,7 @@ public final class WorkflowDtos {
     public record RecordTransactionRequest(
             String accountId,
             String accountNumber,
-            String customerUsername,
+            String customerUserId,
             String transactionType,
             String referenceNumber,
             String referenceType,
@@ -83,7 +83,7 @@ public final class WorkflowDtos {
             String transactionId,
             String accountId,
             String accountNumber,
-            String customerUsername,
+            String customerUserId,
             String transactionType,
             String referenceNumber,
             String referenceType,

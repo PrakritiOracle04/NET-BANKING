@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AccountRepository extends JpaRepository<Account, String> {
-    List<Account> findByCustomerUsername(String customerUsername);
+    List<Account> findByCustomerUserId(String customerUserId);
     Optional<Account> findByAccountNumber(String accountNumber);
-    Optional<Account> findByCustomerUsernameAndPrimaryAccountTrue(String customerUsername);
+    Optional<Account> findByCustomerUserIdAndPrimaryAccountTrue(String customerUserId);
     boolean existsByAccountNumber(String accountNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
