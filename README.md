@@ -35,7 +35,7 @@ Provide database credentials for:
 
 Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
 
-For Phase 2 events, set `KAFKA_BOOTSTRAP_SERVERS`; it defaults to `localhost:9092`. Kafka is used only for asynchronous events such as `transaction-created`, `account-debited`, and `account-credited`.
+Kafka and Kafbat Kafka UI are included in `compose.yaml`. Banking containers connect through `kafka:29092`; host-side Kafka tools can use `localhost:9092`. Kafka UI is available at `http://localhost:8081`.
 
 Use `.env.example` as the key template for local setup. Create the Oracle user/schema yourself, then start the services; there are no manual table migration scripts for Phase 2.
 

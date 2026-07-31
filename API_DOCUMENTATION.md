@@ -309,7 +309,7 @@ Keep secrets only in the ignored `.env` file.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Notification | SMTP transport connection. Never commit these values. |
 | `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_AUTH`, `SMTP_STARTTLS_ENABLE` | Notification | Sender identity and SMTP security settings. |
 | `NOTIFICATION_RETRY_DELAY_MS`, `NOTIFICATION_MAX_RETRIES` | Notification | Retry scheduler interval and retry limit. |
-| `KAFKA_BOOTSTRAP_SERVERS` | Auth, Workflow, Notification | Kafka bootstrap connection. In Podman, these services use `host.containers.internal:9092`. |
+| `KAFKA_BOOTSTRAP_SERVERS` | Auth, Workflow, Notification | Kafka bootstrap connection. Compose configures these services to use the internal listener at `kafka:29092`; host-side tools use `localhost:9092`. |
 
 ## 8. Common troubleshooting
 
@@ -322,4 +322,4 @@ Keep secrets only in the ignored `.env` file.
 | Duplicate registration error | Choose a new username and email; both must be unique in Auth Service. |
 | JAR starts but database actions fail | Confirm Oracle is running and the relevant `*_DB_*` values in `.env` point to the expected service/database. |
 | Notification status is `FAILED` or `RETRYING` | Check SMTP host, port, app password, sender address, TLS settings, and outbound port reachability. For Gmail, use a Google App Password rather than the account password. |
-| Notification Service cannot consume Kafka events | Confirm Kafka advertises `host.containers.internal:9092`, and Auth, Workflow, and Notification use `KAFKA_BOOTSTRAP_SERVERS=host.containers.internal:9092`. |
+| Notification Service cannot consume Kafka events | Confirm the Compose Kafka service is healthy and Auth, Workflow, and Notification use `KAFKA_BOOTSTRAP_SERVERS=kafka:29092`. Kafka UI is available at `http://localhost:8081`. |
