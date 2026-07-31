@@ -15,6 +15,7 @@ This is the starting point for developers integrating with, operating, or extend
 | Beneficiary Service | 8086 | `/api/beneficiaries/**` | Saved transfer destinations and their verification state |
 | Transaction Service | 8087 | `/api/transactions/**` | Transaction history, search, and statements |
 | Banking Workflow Service | 8088 | `/api/banking/**` | Saga orchestration for deposits, withdrawals, and transfers |
+| Notification Service | 8089 | `/api/notifications/**` | SMTP email delivery, templates, delivery history, retries, and Kafka event consumption |
 | Shared Kernel | — | — | Shared API response contracts, security constants, password policy |
 
 External clients should call the API Gateway at `http://localhost:8080`. The gateway forwards each public prefix unchanged to its owning service.
@@ -30,6 +31,7 @@ Client
        -> Beneficiary :8086 /api/beneficiaries/**
        -> Transaction :8087 /api/transactions/**
        -> Workflow :8088   /api/banking/**
+       -> Notification :8089 /api/notifications/**
 ```
 
 ## 2. Start the platform
@@ -187,6 +189,23 @@ Idempotency-Key: 6c0b9bca-7b04-46cb-8fb0-0eb951afc8ef
 
 The workflow is the sole coordinator: it calls Account, Beneficiary, and Transaction services directly. None of those services calls the next service in a money-moving workflow.
 
+### Notification Service
+
+Notification Service is the platform's only SMTP client. Other services must publish notification events to Kafka or use the Notification Service API; they must never connect to SMTP directly.
+
+| Method and route | Authentication | What it does |
+| --- | --- | --- |
+| `POST /api/notifications/email/send` | Bearer JWT | Renders a named template with supplied variables, attempts SMTP delivery, and stores delivery state. Body: `recipient`, `templateName`, optional `variables`, `sourceEvent`, `referenceId`. |
+| `POST /api/notifications/email/test` | Bearer JWT | Sends a test email using the generic template. Body: `recipient`, optional `variables`. |
+| `POST /api/notifications/email/test-kafka` | Bearer JWT | Publishes a test event to `transaction-created`; Notification Service then consumes it and sends the generic email asynchronously. Body: `recipient`, optional `variables`. Returns the Kafka test reference. |
+| `GET /api/notifications/email/{id}` | Bearer JWT | Returns a notification's recipient, subject, status, retry count, and timestamps. |
+| `GET /api/notifications/email/history` | Bearer JWT | Returns persisted notification history, newest first. |
+| `POST /api/notifications/email/{id}/retry` | Bearer JWT | Starts a manual retry for a notification that was not sent. |
+| `GET /api/notifications/email/failed` | Bearer JWT | Lists notifications in `FAILED` state. |
+| `GET /api/notifications/email/pending` | Bearer JWT | Lists notifications in `PENDING` state. |
+
+Email status values are `PENDING`, `PROCESSING`, `SENT`, `FAILED`, and `RETRYING`. Initial reusable templates are `WELCOME`, `LOGIN_ALERT`, `PASSWORD_RESET`, and `GENERIC_NOTIFICATION`. Templates support placeholders such as `{{customerName}}`, `{{currentTime}}`, `{{verificationLink}}`, and `{{message}}`, and render both HTML and plain-text bodies.
+
 ## 5. Service dependencies and flows
 
 | Calling service | Called service | Internal route | Why it is needed |
@@ -197,6 +216,7 @@ The workflow is the sole coordinator: it calls Account, Beneficiary, and Transac
 | Workflow | Account | `GET/POST http://localhost:8085/internal/accounts/**` | Validates accounts, applies idempotent balance movements, and reverses movements during compensation. |
 | Workflow | Beneficiary | `POST http://localhost:8086/internal/beneficiaries/verify-transfer` | Ensures a transfer destination is a verified beneficiary. |
 | Workflow | Transaction | `POST http://localhost:8087/internal/transactions/**` | Records transactions and marks any recorded transaction `REVERSED` during compensation. |
+| Kafka producers | Notification | Kafka topics such as `registration-success`, `login-alert`, and `transaction-created` | Delivers asynchronous notification events. Events must include a recipient address before an email can be sent. |
 
 ### Registration flow
 
@@ -205,6 +225,7 @@ POST /api/auth/register -> Gateway -> Auth
 Auth stores AppUser and role assignment
 Auth -> Customer internal create (X-Internal-Api-Key)
 Customer stores CustomerProfile
+After commit: Auth -> Kafka registration-success -> Notification -> WELCOME email
 Auth returns 201 Created
 ```
 
@@ -217,7 +238,9 @@ POST /api/auth/login -> Gateway -> Auth
 Auth validates BCrypt password
 Auth -> 2FA internal status
 If enabled: Auth -> 2FA internal verify (otpCode required)
-Auth creates UserSession and returns JWT
+Auth creates UserSession
+After commit: Auth -> Kafka login-alert -> Notification -> LOGIN_ALERT email
+Auth returns JWT
 ```
 
 2FA Service must be running for login because Auth always checks 2FA status.
@@ -237,6 +260,18 @@ Workflow -> Transaction reverse (when recorded)
 
 `BANKING_WORKFLOWS` stores each workflow's idempotency key, state, references, and compensation progress. `ACCOUNT_MOVEMENTS` stores every applied account movement and its reversal state. This makes a new Saga route extensible: add its type and steps to Workflow Service, persist each successful step before the next remote call, and add its compensating action in reverse order. `COMPENSATION_PENDING` workflows retry on the Workflow Service scheduler; clients receive `503 Service Unavailable` until recovery succeeds.
 
+### Notification flow
+
+```text
+Normal notification:
+Producer Service -> Kafka -> Notification Service -> Template Renderer -> SMTP -> Recipient
+
+Manual or test notification:
+Client -> Gateway -> Notification Service -> Template Renderer -> SMTP -> Recipient
+```
+
+Kafka handling is asynchronous: a producer never waits for SMTP delivery. Notification Service writes an `EMAIL_NOTIFICATION` record, attempts delivery, and records every attempt in `EMAIL_DELIVERY_LOG`. Temporary failures enter `RETRYING` and are retried by the Notification Service scheduler. SMTP credentials stay only in the ignored `.env` file.
+
 ## 6. Data ownership
 
 Each service owns its own entity model and database tables; no service reads another service repository or table.
@@ -251,6 +286,7 @@ Each service owns its own entity model and database tables; no service reads ano
 | Beneficiary | `Beneficiary` |
 | Transaction | `BankTransaction` |
 | Banking Workflow | `WorkflowSaga` (`BANKING_WORKFLOWS`) |
+| Notification | `EmailNotification` (`EMAIL_NOTIFICATION`), `EmailTemplate` (`EMAIL_TEMPLATE`), `EmailDeliveryLog` (`EMAIL_DELIVERY_LOG`) |
 
 `legacy-entity-reference/` retains the original entity files as reference material only. It is outside a Maven source root and is not compiled by Phase 1.
 
@@ -269,6 +305,11 @@ Keep secrets only in the ignored `.env` file.
 | `TWOFA_ENCRYPTION_KEY` | 2FA | Separate Base64 256-bit AES key for encrypted TOTP secrets |
 | `AUTH_SERVICE_URL`, `TWOFA_SERVICE_URL`, `CUSTOMER_SERVICE_URL`, `BRANCH_SERVICE_URL` | Gateway / Auth | Optional overrides for non-local deployments |
 | `CORS_ALLOWED_ORIGINS` | Gateway | Optional allowed frontend origin; defaults to `http://localhost:3000` |
+| `NOTIFICATION_DB_URL`, `NOTIFICATION_DB_USERNAME`, `NOTIFICATION_DB_PASSWORD` | Notification | Oracle connection for notification-owned tables. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Notification | SMTP transport connection. Never commit these values. |
+| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_AUTH`, `SMTP_STARTTLS_ENABLE` | Notification | Sender identity and SMTP security settings. |
+| `NOTIFICATION_RETRY_DELAY_MS`, `NOTIFICATION_MAX_RETRIES` | Notification | Retry scheduler interval and retry limit. |
+| `KAFKA_BOOTSTRAP_SERVERS` | Auth, Workflow, Notification | Kafka bootstrap connection. Compose configures these services to use the internal listener at `kafka:29092`; host-side tools use `localhost:9092`. |
 
 ## 8. Common troubleshooting
 
@@ -280,3 +321,5 @@ Keep secrets only in the ignored `.env` file.
 | Internal call rejects its key | Ensure Auth, 2FA, and Customer use exactly the same `INTERNAL_API_KEY`. |
 | Duplicate registration error | Choose a new username and email; both must be unique in Auth Service. |
 | JAR starts but database actions fail | Confirm Oracle is running and the relevant `*_DB_*` values in `.env` point to the expected service/database. |
+| Notification status is `FAILED` or `RETRYING` | Check SMTP host, port, app password, sender address, TLS settings, and outbound port reachability. For Gmail, use a Google App Password rather than the account password. |
+| Notification Service cannot consume Kafka events | Confirm the Compose Kafka service is healthy and Auth, Workflow, and Notification use `KAFKA_BOOTSTRAP_SERVERS=kafka:29092`. Kafka UI is available at `http://localhost:8081`. |

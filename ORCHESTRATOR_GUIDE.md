@@ -363,4 +363,4 @@ Kafka is not part of the correctness path for money movement right now.
 
 Workflow completes the Saga and balance/transaction consistency first. Afterwards it emits events such as account-credited, account-debited, and transaction-created for future consumers such as notifications, audit, analytics, or fraud checks.
 
-Kafka is still deferred because its local container/connectivity setup needs to be fixed separately. The Saga rollback design does not depend on Kafka being available.
+Inside Compose, Kafka is connected through the internal listener at `kafka:29092`; host-side tools use `localhost:9092`. After a successful banking workflow, Workflow Service resolves the customer's notification recipient through Auth Service's internal API and publishes an enriched `transaction-created` event. Notification Service consumes that event asynchronously, renders the selected template, sends the email over SMTP, and persists its delivery status. Notification delivery remains outside the Saga correctness path: an email failure must never roll back a completed banking operation.

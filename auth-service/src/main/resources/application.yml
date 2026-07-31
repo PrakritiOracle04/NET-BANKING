@@ -15,6 +15,16 @@ spring:
     open-in-view: false
   jackson:
     default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+banking:
+  events:
+    registration-success-topic: ${REGISTRATION_SUCCESS_TOPIC:registration-success}
+    login-alert-topic: ${LOGIN_ALERT_TOPIC:login-alert}
 
 security:
   jwt:

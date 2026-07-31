@@ -28,6 +28,7 @@
         <module>beneficiary-service</module>
         <module>transaction-service</module>
         <module>banking-workflow-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>

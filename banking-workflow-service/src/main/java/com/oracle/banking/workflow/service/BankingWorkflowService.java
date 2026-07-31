@@ -26,6 +26,7 @@ import com.oracle.banking.workflow.repository.WorkflowSagaRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,8 +46,9 @@ public class BankingWorkflowService {
     private final WorkflowEventPublisher events;
     private final WorkflowSagaRepository sagas;
     private final String internalApiKey;
+    private final NotificationRecipientClient recipients;
 
-    public BankingWorkflowService(RestClient.Builder restClientBuilder, WorkflowEventPublisher events, WorkflowSagaRepository sagas,
+    public BankingWorkflowService(RestClient.Builder restClientBuilder, WorkflowEventPublisher events, WorkflowSagaRepository sagas, NotificationRecipientClient recipients,
             @Value("${services.account-service-url}") String accountServiceUrl,
             @Value("${services.beneficiary-service-url}") String beneficiaryServiceUrl,
             @Value("${services.transaction-service-url}") String transactionServiceUrl,
@@ -56,6 +58,7 @@ public class BankingWorkflowService {
         this.transactionClient = restClientBuilder.baseUrl(transactionServiceUrl).build();
         this.events = events;
         this.sagas = sagas;
+        this.recipients = recipients;
         this.internalApiKey = internalApiKey;
     }
 
@@ -341,7 +344,14 @@ public class BankingWorkflowService {
     }
 
     private DomainEvent event(String eventType, WorkflowSaga saga, String accountId) {
-        return new DomainEvent(eventType, saga.getReferenceNumber(), accountId, saga.getAmount(), "SUCCESS", Instant.now());
+        try {
+            String email = recipients.email(saga.getCustomerUsername());
+            return new DomainEvent(eventType, saga.getReferenceNumber(), accountId, saga.getAmount(), "SUCCESS", Instant.now(), email,
+                    "GENERIC_NOTIFICATION", Map.of("message", "Your banking operation " + saga.getReferenceNumber() + " completed successfully."));
+        } catch (RuntimeException ex) {
+            log.warn("Notification event was skipped for workflow {}", saga.getReferenceNumber());
+            return null;
+        }
     }
 
     private DepositResponse depositResponse(WorkflowSaga saga) {
