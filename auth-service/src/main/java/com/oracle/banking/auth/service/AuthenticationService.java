@@ -9,6 +9,7 @@ import com.oracle.banking.auth.dto.UserResponse;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
 import com.oracle.banking.auth.entity.UserSession;
+import com.oracle.banking.auth.event.AuthNotificationEventPublisher;
 import com.oracle.banking.auth.exception.BadCredentialsException;
 import com.oracle.banking.auth.exception.BadRequestException;
 import com.oracle.banking.auth.exception.DuplicateResourceException;
@@ -37,10 +38,12 @@ public class AuthenticationService {
     private final CustomerClient customerClient;
     private final TwoFactorClient twoFactorClient;
     private final JwtService jwtService;
+    private final AuthNotificationEventPublisher notificationEvents;
 
     public AuthenticationService(AppUserRepository users, RoleRepository roles, UserSessionRepository sessions,
                                  PasswordEncoder passwordEncoder, CustomerClient customerClient,
-                                 TwoFactorClient twoFactorClient, JwtService jwtService) {
+                                 TwoFactorClient twoFactorClient, JwtService jwtService,
+                                 AuthNotificationEventPublisher notificationEvents) {
         this.users = users;
         this.roles = roles;
         this.sessions = sessions;
@@ -48,6 +51,7 @@ public class AuthenticationService {
         this.customerClient = customerClient;
         this.twoFactorClient = twoFactorClient;
         this.jwtService = jwtService;
+        this.notificationEvents = notificationEvents;
     }
 
     @Transactional
@@ -62,6 +66,7 @@ public class AuthenticationService {
         AppUser user = users.save(new AppUser(UUID.randomUUID().toString(), customer, request.username(),
                 request.email(), request.phone(), passwordEncoder.encode(request.password())));
         customerClient.createProfile(user, request);
+        notificationEvents.registrationSucceeded(user);
         log.info("Registration completed for user {}", user.getUserId());
         return new RegisterResponse(user.getUserId(), user.getUsername(), user.getEmail(), customer.getRoleName(), false);
     }
@@ -80,6 +85,7 @@ public class AuthenticationService {
         }
         IssuedToken token = jwtService.issue(user);
         sessions.save(new UserSession(user.getUserId(), token.expiresAt()));
+        notificationEvents.loginSucceeded(user);
         log.info("Login successful for user {}", user.getUserId());
         return new LoginResponse(token.value(), "Bearer", token.expiresAt(), user.getUsername(),
                 user.getRole().getRoleName(), twoFactorEnabled);

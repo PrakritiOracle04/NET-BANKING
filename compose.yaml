@@ -107,6 +107,7 @@ services:
       CUSTOMER_SERVICE_URL: http://customer-service:8083
       TWOFA_SERVICE_URL: http://twofa-service:8082
       SECURITY_JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BOOTSTRAP_SERVERS: host.containers.internal:9092
     depends_on:
       - customer-service
       - twofa-service
