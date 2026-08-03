@@ -105,6 +105,7 @@ public class WorkflowSaga {
     public String getReferenceNumber() { return referenceNumber; }
     public String getSourceAccountId() { return sourceAccountId; }
     public String getDestinationAccountId() { return destinationAccountId; }
+    public String getDestinationAccountNumber() { return destinationAccountNumber; }
     public String getAccountNumber() { return accountNumber; }
     public String getAccountType() { return accountType; }
     public String getBranchIfsc() { return branchIfsc; }

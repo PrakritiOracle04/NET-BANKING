@@ -31,8 +31,9 @@ import com.oracle.banking.workflow.exception.WorkflowExceptions.Forbidden;
 import com.oracle.banking.workflow.repository.WorkflowSagaRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.UUID;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -236,6 +237,9 @@ public class BankingWorkflowService {
         if (idempotencyKey == null || idempotencyKey.isBlank()) throw new BadRequest("Idempotency-Key is required");
         WorkflowSaga existing = sagas.findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(customerUserId, idempotencyKey, type).orElse(null);
         if (existing != null) {
+            if (!sameRequest(existing, sourceAccountId, destinationAccountNumber, amount, description)) {
+                throw new Conflict("Idempotency key was already used with a different request");
+            }
             if (existing.getStatus() == WorkflowStatus.COMPLETED) return existing;
             if (existing.getStatus() == WorkflowStatus.COMPENSATION_PENDING) {
                 throw new CompensationPending("Workflow " + existing.getReferenceNumber() + " is awaiting compensation");
@@ -243,6 +247,18 @@ public class BankingWorkflowService {
             throw new Conflict("Idempotency key was already used by workflow " + existing.getReferenceNumber());
         }
         return save(new WorkflowSaga(customerUserId, idempotencyKey, type, reference(prefix), sourceAccountId, destinationAccountNumber, amount, description));
+    }
+
+    private boolean sameRequest(
+            WorkflowSaga saga,
+            String sourceAccountId,
+            String destinationAccountNumber,
+            BigDecimal amount,
+            String description) {
+        return Objects.equals(saga.getSourceAccountId(), sourceAccountId)
+                && Objects.equals(saga.getDestinationAccountNumber(), destinationAccountNumber)
+                && saga.getAmount().compareTo(amount) == 0
+                && Objects.equals(saga.getDescription(), description);
     }
 
     private WorkflowSaga beginAccountOpening(
