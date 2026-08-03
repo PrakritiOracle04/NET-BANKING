@@ -12,6 +12,13 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.CustomerOnboardingStatus;
 import com.oracle.banking.workflow.dto.WorkflowDtos.BranchResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalBillerValidationResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalBillPaymentResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCompleteBillPaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCreateBillPaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalFailBillPaymentRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.RecordTransactionRequest;
@@ -52,6 +59,7 @@ public class BankingWorkflowService {
     private final RestClient transactionClient;
     private final RestClient customerClient;
     private final RestClient branchClient;
+    private final RestClient billPaymentClient;
     private final WorkflowEventPublisher events;
     private final WorkflowSagaRepository sagas;
     private final String internalApiKey;
@@ -63,16 +71,84 @@ public class BankingWorkflowService {
             @Value("${services.transaction-service-url}") String transactionServiceUrl,
             @Value("${services.customer-service-url}") String customerServiceUrl,
             @Value("${services.branch-service-url}") String branchServiceUrl,
+            @Value("${services.billpayment-service-url}") String billPaymentServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey) {
         this.accountClient = restClientBuilder.baseUrl(accountServiceUrl).build();
         this.beneficiaryClient = restClientBuilder.baseUrl(beneficiaryServiceUrl).build();
         this.transactionClient = restClientBuilder.baseUrl(transactionServiceUrl).build();
         this.customerClient = restClientBuilder.baseUrl(customerServiceUrl).build();
         this.branchClient = restClientBuilder.baseUrl(branchServiceUrl).build();
+        this.billPaymentClient = restClientBuilder.baseUrl(billPaymentServiceUrl).build();
         this.events = events;
         this.sagas = sagas;
         this.recipients = recipients;
         this.internalApiKey = internalApiKey;
+    }
+
+    public BillPaymentWorkflowResponse payBill(
+            String userId,
+            String idempotencyKey,
+            BillPaymentWorkflowRequest request) {
+        WorkflowSaga saga = beginBillPayment(userId, idempotencyKey, request);
+        if (saga.getStatus() == WorkflowStatus.COMPLETED) return billPaymentResponse(saga);
+        try {
+            InternalAccountValidationResponse account = validateAccount(request.sourceAccountId());
+            requireOwnerOrAdmin(account, userId, false);
+            requireActive(account);
+            requireSufficientBalance(account, request.amount());
+
+            InternalBillerValidationResponse biller = validateRegisteredBiller(
+                    request.customerBillerId(), userId);
+            if (!biller.active()) throw new BadRequest("Registered biller must be active");
+
+            saga.prerequisitesValidated();
+            save(saga);
+
+            InternalBillPaymentResponse pending = createPendingBillPayment(saga, request);
+            saga.billPaymentCreated(pending.billPaymentId());
+            save(saga);
+
+            String movementReference = saga.getReferenceNumber() + ":DEBIT";
+            saga.sourceMovementPlanned(movementReference);
+            save(saga);
+            debit(account.accountId(), request.amount(), movementReference, request.description());
+            saga.sourceMoved(movementReference);
+            save(saga);
+
+            String transactionReference = saga.getReferenceNumber();
+            saga.debitTransactionPlanned(transactionReference);
+            save(saga);
+            TransactionResponse transaction = record(
+                    account,
+                    "BILL_PAYMENT",
+                    transactionReference,
+                    "BILL_PAYMENT",
+                    request.amount(),
+                    "DEBIT",
+                    request.description());
+            saga.debitTransactionRecorded(transactionReference, transaction.transactionId());
+            saga.transactionsRecorded();
+            save(saga);
+
+            completeBillPayment(saga.getBillPaymentId(), transaction.transactionId(), transactionReference);
+            saga.complete();
+            save(saga);
+
+            events.billPaymentSucceeded(billPaymentEvent(
+                    "bill-payment-success",
+                    saga,
+                    "Your bill payment " + saga.getReferenceNumber() + " completed successfully."));
+            return billPaymentResponse(saga);
+        } catch (RuntimeException exception) {
+            RuntimeException outcome = fail(saga, exception);
+            if (saga.getStatus() == WorkflowStatus.COMPENSATED || saga.getStatus() == WorkflowStatus.FAILED) {
+                events.billPaymentFailed(billPaymentEvent(
+                        "bill-payment-failed",
+                        saga,
+                        "Your bill payment " + saga.getReferenceNumber() + " failed and no funds were retained."));
+            }
+            throw outcome;
+        }
     }
 
     public OpenAccountResponse openAccount(String userId, String idempotencyKey, OpenAccountRequest request) {
@@ -228,6 +304,12 @@ public class BankingWorkflowService {
         sagas.findByStatus(WorkflowStatus.COMPENSATION_PENDING).forEach(saga -> {
             if (compensate(saga)) {
                 log.info("Recovered compensation for workflow {}", saga.getWorkflowId());
+                if (saga.getWorkflowType() == WorkflowType.BILL_PAYMENT) {
+                    events.billPaymentFailed(billPaymentEvent(
+                            "bill-payment-failed",
+                            saga,
+                            "Your bill payment " + saga.getReferenceNumber() + " failed and was reversed."));
+                }
             }
         });
     }
@@ -259,6 +341,41 @@ public class BankingWorkflowService {
                 && Objects.equals(saga.getDestinationAccountNumber(), destinationAccountNumber)
                 && saga.getAmount().compareTo(amount) == 0
                 && Objects.equals(saga.getDescription(), description);
+    }
+
+    private WorkflowSaga beginBillPayment(
+            String userId,
+            String idempotencyKey,
+            BillPaymentWorkflowRequest request) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BadRequest("Idempotency-Key is required");
+        }
+        WorkflowSaga existing = sagas.findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(
+                userId, idempotencyKey, WorkflowType.BILL_PAYMENT).orElse(null);
+        if (existing != null) {
+            boolean sameRequest = Objects.equals(existing.getSourceAccountId(), request.sourceAccountId())
+                    && Objects.equals(existing.getCustomerBillerId(), request.customerBillerId())
+                    && existing.getAmount().compareTo(request.amount()) == 0
+                    && Objects.equals(existing.getDescription(), request.description());
+            if (!sameRequest) throw new Conflict("Idempotency key was already used with a different bill-payment request");
+            if (existing.getStatus() == WorkflowStatus.COMPLETED) return existing;
+            if (existing.getStatus() == WorkflowStatus.COMPENSATION_PENDING) {
+                throw new CompensationPending(
+                        "Workflow " + existing.getReferenceNumber() + " is awaiting compensation");
+            }
+            throw new Conflict("Idempotency key was already used by workflow " + existing.getReferenceNumber());
+        }
+        WorkflowSaga saga = new WorkflowSaga(
+                userId,
+                idempotencyKey,
+                WorkflowType.BILL_PAYMENT,
+                reference("BIL"),
+                request.sourceAccountId(),
+                null,
+                request.amount(),
+                request.description());
+        saga.billPaymentRequested(request.customerBillerId());
+        return save(saga);
     }
 
     private WorkflowSaga beginAccountOpening(
@@ -372,6 +489,82 @@ public class BankingWorkflowService {
         }
     }
 
+    private InternalBillerValidationResponse validateRegisteredBiller(String customerBillerId, String userId) {
+        try {
+            InternalBillerValidationResponse response = billPaymentClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/internal/billers/{id}/validate")
+                            .queryParam("customerUserId", userId)
+                            .build(customerBillerId))
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .retrieve()
+                    .body(InternalBillerValidationResponse.class);
+            if (response == null) throw new DownstreamFailure("Biller validation returned no data");
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) throw new BadRequest("Registered biller could not be validated");
+            throw new DownstreamFailure("Bill Payment Service is unavailable");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Bill Payment Service is unavailable");
+        }
+    }
+
+    private InternalBillPaymentResponse createPendingBillPayment(
+            WorkflowSaga saga,
+            BillPaymentWorkflowRequest request) {
+        try {
+            InternalBillPaymentResponse response = billPaymentClient.post()
+                    .uri("/internal/bill-payments")
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalCreateBillPaymentRequest(
+                            saga.getCustomerUserId(), request.customerBillerId(), request.sourceAccountId(),
+                            request.amount(), saga.getReferenceNumber(), request.description()))
+                    .retrieve()
+                    .body(InternalBillPaymentResponse.class);
+            if (response == null) throw new DownstreamFailure("Bill Payment Service returned no data");
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) throw new BadRequest("Bill payment could not be created");
+            throw new DownstreamFailure("Bill Payment Service is unavailable");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Bill Payment Service is unavailable");
+        }
+    }
+
+    private void completeBillPayment(String id, String transactionId, String transactionReference) {
+        try {
+            billPaymentClient.put()
+                    .uri("/internal/bill-payments/{id}/complete", id)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalCompleteBillPaymentRequest(transactionId, transactionReference))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Bill payment completion failed");
+        }
+    }
+
+    private void cancelBillPayment(String id, String workflowReference, String reason) {
+        try {
+            billPaymentClient.put()
+                    .uri(
+                            id == null
+                                    ? "/internal/bill-payments/workflow/{reference}/cancel"
+                                    : "/internal/bill-payments/{reference}/cancel",
+                            id == null ? workflowReference : id)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalFailBillPaymentRequest(
+                            reason == null || reason.isBlank() ? "Workflow compensated" : reason))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 404 && id == null) return;
+            throw new DownstreamFailure("Bill payment compensation failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Bill payment compensation failed");
+        }
+    }
+
     private RuntimeException fail(WorkflowSaga saga, RuntimeException cause) {
         if (!saga.hasMutation()) {
             saga.fail(cause.getMessage());
@@ -392,6 +585,14 @@ public class BankingWorkflowService {
         successful &= attempt("reverse debit transaction", () -> reverseTransaction(saga.getDebitTransactionReference()));
         successful &= attempt("reverse destination movement", () -> reverseMovement(saga.getDestinationAccountId(), saga.getDestinationMovementReference()));
         successful &= attempt("reverse source movement", () -> reverseMovement(saga.getSourceAccountId(), saga.getSourceMovementReference()));
+        if (saga.getWorkflowType() == WorkflowType.BILL_PAYMENT) {
+            successful &= attempt(
+                    "cancel bill payment",
+                    () -> cancelBillPayment(
+                            saga.getBillPaymentId(),
+                            saga.getReferenceNumber(),
+                            "Workflow was compensated"));
+        }
         if (successful) {
             saga.compensated();
         } else {
@@ -416,6 +617,9 @@ public class BankingWorkflowService {
             return accountClient.get().uri("/internal/accounts/{id}/validate", accountId)
                     .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey).retrieve()
                     .body(InternalAccountValidationResponse.class);
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().is4xxClientError()) throw new BadRequest("Account could not be validated");
+            throw new DownstreamFailure("Account validation failed");
         } catch (RestClientException ex) {
             throw new DownstreamFailure("Account validation failed");
         }
@@ -545,6 +749,34 @@ public class BankingWorkflowService {
     private TransferResponse transferResponse(WorkflowSaga saga) {
         return new TransferResponse(saga.getReferenceNumber(), saga.getSourceAccountId(), saga.getDestinationAccountId(), saga.getAmount(), "SUCCESS",
                 saga.getDebitTransactionId(), saga.getCreditTransactionId());
+    }
+
+    private BillPaymentWorkflowResponse billPaymentResponse(WorkflowSaga saga) {
+        return new BillPaymentWorkflowResponse(
+                saga.getReferenceNumber(),
+                saga.getBillPaymentId(),
+                saga.getDebitTransactionId(),
+                saga.getSourceAccountId(),
+                saga.getAmount(),
+                "SUCCESS");
+    }
+
+    private DomainEvent billPaymentEvent(String eventType, WorkflowSaga saga, String message) {
+        try {
+            return new DomainEvent(
+                    eventType,
+                    saga.getReferenceNumber(),
+                    saga.getSourceAccountId(),
+                    saga.getAmount(),
+                    saga.getStatus().name(),
+                    Instant.now(),
+                    recipients.email(saga.getCustomerUserId()),
+                    "GENERIC_NOTIFICATION",
+                    Map.of("message", message));
+        } catch (RuntimeException exception) {
+            log.warn("Bill payment notification was skipped for workflow {}", saga.getReferenceNumber());
+            return null;
+        }
     }
 
     private OpenAccountResponse openAccountResponse(WorkflowSaga saga) {

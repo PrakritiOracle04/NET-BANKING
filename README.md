@@ -14,6 +14,8 @@ This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. 
 | `beneficiary-service` | 8086 | Beneficiary CRUD, status, transfer verification |
 | `transaction-service` | 8087 | Transaction records, history, search, statements |
 | `banking-workflow-service` | 8088 | Account-opening, deposit, withdrawal, and transfer orchestration |
+| `billpayment-service` | 8090 | Biller catalog, customer billers, and payment history |
+| `card-service` | 8091 | Secure card issuance, state, and daily limits |
 
 The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service. See `DATA_OWNERSHIP.md` for the field-level ownership rules and `API_DOCUMENTATION.md` for complete routes and flows.
 
@@ -32,8 +34,11 @@ Provide database credentials for:
 - `ACCOUNT_DB_*`
 - `BENEFICIARY_DB_*`
 - `TRANSACTION_DB_*`
+- `BILLPAYMENT_DB_*`
+- `CARD_DB_*`
 
 Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
+Set `CARD_ENCRYPTION_KEY` to another independent Base64 256-bit key. Card PAN values are encrypted with AES-GCM and are exposed only as masked values.
 
 Kafka and Kafbat Kafka UI are included in `compose.yaml`. Banking containers connect through `kafka:29092`; host-side Kafka tools can use `localhost:9092`. Kafka UI is available at `http://localhost:8081`.
 
@@ -70,5 +75,8 @@ Swagger is available at `/swagger-ui` on each service. Send external requests th
 - `/api/beneficiaries/**`
 - `/api/transactions/**`
 - `/api/banking/**`
+- `/api/billers/**`
+- `/api/bill-payments/**`
+- `/api/cards/**`
 
 The gateway forwards these paths to their owning services on ports 8081-8088.

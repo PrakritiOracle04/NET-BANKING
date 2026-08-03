@@ -9,6 +9,9 @@ It does not replace Account, Beneficiary, or Transaction Service. Each still own
 | Account Service | Account state, balances, balance movements |
 | Beneficiary Service | Who the customer is allowed to transfer to |
 | Transaction Service | Transaction history and transaction status |
+| Customer Service | Profile and KYC eligibility for account opening |
+| Branch Service | IFSC validation |
+| Bill Payment Service | Biller registrations and bill-payment state/history |
 | Banking Workflow Service | The overall process, step order, idempotency, rollback, and recovery |
 
 The public request path is:
@@ -18,6 +21,7 @@ Client -> API Gateway :8080 -> Banking Workflow Service :8088
                                   -> Account Service :8085
                                   -> Beneficiary Service :8086
                                   -> Transaction Service :8087
+                                  -> Bill Payment Service :8090
 ```
 
 The important rule is: for money-moving operations, Workflow Service calls the participating services. Account Service does not call Beneficiary Service, and Beneficiary Service does not call Transaction Service.
@@ -44,6 +48,8 @@ Idempotency-Key: <unique-client-generated-value>
 | `POST /api/banking/deposit` | Account credit -> transaction record |
 | `POST /api/banking/withdraw` | Account debit -> transaction record |
 | `POST /api/banking/transfer` | Validate source -> validate destination -> validate beneficiary -> debit source -> credit destination -> record debit transaction -> record credit transaction |
+| `POST /api/banking/accounts/open` | Validate profile/KYC -> validate branch -> idempotently create account |
+| `POST /api/banking/bill-payments` | Validate account/biller -> create pending payment -> debit account -> record transaction -> complete payment |
 
 The gateway merely forwards `/api/banking/**` to Workflow Service. It does not understand balance updates, rollbacks, or Saga state.
 
@@ -90,7 +96,7 @@ A row stores:
 
 - Customer username
 - Idempotency key
-- Workflow type: `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER`
+- Workflow type: `DEPOSIT`, `WITHDRAWAL`, `TRANSFER`, `ACCOUNT_OPENING`, or `BILL_PAYMENT`
 - Workflow reference, such as `TRF-...`
 - Source/destination account details
 - Amount and description
@@ -197,6 +203,23 @@ Then it performs the money movement in the correct business order:
 3. Record source debit transaction
 4. Record destination credit transaction
 ```
+
+## Bill-payment flow
+
+Bill payment uses the same persisted Saga and reference-based compensation model:
+
+```text
+Client -> Gateway -> Workflow
+Workflow -> Account: validate owner, status, and balance
+Workflow -> Bill Payment: validate registered biller
+Workflow -> Bill Payment: create PENDING payment by workflow reference
+Workflow -> Account: debit by stable movement reference
+Workflow -> Transaction: record BILL_PAYMENT debit transaction
+Workflow -> Bill Payment: mark SUCCESS
+Workflow -> Client: 201 success
+```
+
+If the workflow loses the response from pending-payment creation, compensation can find and cancel the payment using the workflow reference. If a later step fails, Workflow reverses the recorded transaction, reverses the debit, and cancels the bill payment in that order.
 
 ## Rollback / compensation
 

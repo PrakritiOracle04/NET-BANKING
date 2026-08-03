@@ -18,6 +18,8 @@ See [DATA_OWNERSHIP.md](DATA_OWNERSHIP.md) for the authoritative ownership and d
 | Transaction Service | 8087 | `/api/transactions/**` | Immutable transaction history and statements |
 | Banking Workflow Service | 8088 | `/api/banking/**` | Account-opening and money-movement sagas |
 | Notification Service | 8089 | `/api/notifications/**` | Kafka consumers, email rendering, SMTP delivery |
+| Bill Payment Service | 8090 | `/api/billers/**`, `/api/bill-payments/**` | Biller catalog, registrations, payment history |
+| Card Service | 8091 | `/api/cards/**` | Encrypted cards, state transitions, daily limits |
 
 ```text
 Client -> API Gateway :8080
@@ -262,6 +264,53 @@ Workflow is the coordinator. Account never calls Beneficiary or Transaction to c
 
 Normal business notifications are asynchronous: producer -> Kafka -> Notification Service -> template -> SMTP. States are `PENDING`, `PROCESSING`, `SENT`, `FAILED`, and `RETRYING`.
 
+### Billers and bill payments
+
+Bill Payment Service separates the administrator-managed catalog from customer-owned registrations.
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `GET /api/billers/catalog` | JWT | List active catalog billers; optional `category` filter |
+| `POST /api/billers/catalog` | ADMIN | Create catalog biller (`201`) |
+| `PUT /api/billers/catalog/{id}` | ADMIN | Update catalog biller |
+| `DELETE /api/billers/catalog/{id}` | ADMIN | Soft-deactivate catalog biller (`204`) |
+| `GET /api/billers` | JWT | List own registered billers |
+| `POST /api/billers` | JWT | Register a catalog biller (`201`) |
+| `GET /api/billers/{id}` | owner | Registered biller details |
+| `PUT /api/billers/{id}` | owner | Update registration |
+| `DELETE /api/billers/{id}` | owner | Deactivate registration (`204`) |
+| `GET /api/bill-payments` | JWT | Paginated own payment history |
+| `GET /api/bill-payments/history` | JWT | Filter by status/account/biller/date |
+| `GET /api/bill-payments/{id}` | owner/ADMIN | Payment details |
+
+Bill payment creation exists only at `POST /api/banking/bill-payments` and requires `Idempotency-Key`:
+
+```json
+{
+  "sourceAccountId": "account-id",
+  "customerBillerId": "registered-biller-id",
+  "amount": 1250.00,
+  "description": "Electricity bill"
+}
+```
+
+Workflow creates a durable `PENDING` payment, debits Account, records a `BILL_PAYMENT` transaction, completes the payment, and publishes `bill-payment-success`. A later failure reverses the transaction and debit, cancels the payment, and publishes `bill-payment-failed` only after compensation stabilizes.
+
+### Cards
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `POST /api/cards` | ADMIN | Issue an inactive debit card for a matching active account (`201`) |
+| `GET /api/cards` | JWT | List own cards; ADMIN may filter `customerUserId` |
+| `GET /api/cards/{id}` | owner/ADMIN | Masked card details |
+| `GET /api/cards/{id}/status` | owner/ADMIN | Safe card status summary |
+| `POST /api/cards/{id}/activate` | owner | `INACTIVE -> ACTIVE` |
+| `POST /api/cards/{id}/block` | owner/ADMIN | `INACTIVE/ACTIVE -> BLOCKED` |
+| `POST /api/cards/{id}/unblock` | owner/ADMIN | `BLOCKED -> ACTIVE` |
+| `PUT /api/cards/{id}/limit` | owner | Update positive configured-range daily limit |
+
+Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with AES-256-GCM, stores an HMAC fingerprint for uniqueness, and returns only `************1234`. CVV and PIN are not stored or implemented.
+
 ## Internal dependency map
 
 | Caller | Callee | Contract | Reason |
@@ -275,6 +324,9 @@ Normal business notifications are asynchronous: producer -> Kafka -> Notificatio
 | Workflow | Account | validation, debit, credit, reversal routes | Apply/reverse idempotent movements |
 | Workflow | Beneficiary | `POST /internal/beneficiaries/verify-transfer` | Require verified destination |
 | Workflow | Transaction | create and reverse routes | Persist/reverse transaction records |
+| Workflow | Bill Payment | validation, pending, complete, cancel routes | Execute and compensate bill-payment Saga |
+| Card | Account | account validation route | Verify issue account and owner |
+| Card | Auth | notification-recipient route | Obtain current email without duplicating it |
 | Account | Transaction | recent-transactions route | Read-only mini statement composition |
 | Auth/Workflow | Kafka | domain topics | Publish notification events after success |
 | Notification | Kafka | domain topics | Consume and deliver email |
@@ -313,6 +365,8 @@ Keep actual values only in the ignored `.env`.
 | `INTERNAL_API_KEY` | Shared credential for `/internal/**` calls |
 | `TWOFA_ENCRYPTION_KEY` | AES key for TOTP secrets |
 | `KYC_ENCRYPTION_KEY` | AES key and fingerprint derivation material for Aadhaar/PAN |
+| `CARD_ENCRYPTION_KEY` | Independent AES key and fingerprint derivation material for card PAN |
+| `CARD_MAX_DAILY_LIMIT` | Upper bound for customer card limits |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka connection |
 | `SMTP_*` | Notification-only SMTP transport and sender settings |
 | `*_SERVICE_URL` | Gateway and internal client destinations |
@@ -330,3 +384,4 @@ Keep actual values only in the ignored `.env`.
 | Old enum produces Oracle check violation | Recreate disposable schema or add an explicit migration |
 | Notification retries/fails | Kafka health, recipient, SMTP app password/TLS |
 | Container exits | `podman-compose logs <service-name>` and Oracle reachability |
+| Oracle approaches process limit | Compose bounds each Hikari pool with `DB_POOL_MAX_SIZE` (default 4) and `DB_POOL_MIN_IDLE` (default 1) |

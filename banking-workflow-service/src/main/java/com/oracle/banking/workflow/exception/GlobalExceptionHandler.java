@@ -15,9 +15,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     @ExceptionHandler(BadRequest.class)
     ResponseEntity<ErrorResponse> badRequest(BadRequest ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
@@ -30,7 +33,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DownstreamFailure.class)
     ResponseEntity<ErrorResponse> downstream(DownstreamFailure ex, HttpServletRequest request) {
-        return error(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
     @ExceptionHandler(Conflict.class)
@@ -50,6 +53,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> general(Exception ex, HttpServletRequest request) {
+        log.error("Unexpected Banking Workflow Service error", ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 

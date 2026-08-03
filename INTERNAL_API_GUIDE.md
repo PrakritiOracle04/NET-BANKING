@@ -464,6 +464,36 @@ Account's internal mutation routes also use reference numbers. This gives protec
 - Workflow prevents the business operation from running twice.
 - Account prevents the same movement reference from being applied twice.
 
+## Bill-payment internal workflow
+
+Bill-payment creation is another multi-service mutation and therefore enters through Workflow:
+
+```text
+Client -> Gateway -> Workflow
+                     |-> Account validation
+                     |-> Bill Payment biller validation
+                     |-> Bill Payment create PENDING
+                     |-> Account debit
+                     |-> Transaction create
+                     `-> Bill Payment complete
+```
+
+Bill Payment Service owns the catalog, registrations, and payment records. It never debits an account and never inserts a transaction directly. Workflow owns ordering, idempotency, and compensation.
+
+If a downstream step fails after the debit, Workflow reverses the transaction when present, reverses the account movement, and cancels the payment. Cancellation can use either `billPaymentId` or the stable workflow reference, which covers the case where the payment was created but its HTTP response was lost.
+
+The Phase 3B internal contracts are:
+
+```http
+GET  /internal/billers/{id}/validate?customerUserId=...
+POST /internal/bill-payments
+PUT  /internal/bill-payments/{id}/complete
+PUT  /internal/bill-payments/{id}/cancel
+PUT  /internal/bill-payments/workflow/{reference}/cancel
+```
+
+These routes require `X-Internal-Api-Key` and are intentionally absent from Gateway.
+
 ## Mini-statement internal call
 
 Mini-statement is not a complex multi-service mutation, so it does not need Workflow.

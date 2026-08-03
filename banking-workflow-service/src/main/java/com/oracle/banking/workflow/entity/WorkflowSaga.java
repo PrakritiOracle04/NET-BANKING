@@ -51,6 +51,10 @@ public class WorkflowSaga {
     private String accountType;
     @Column(name = "BRANCH_IFSC", length = 11)
     private String branchIfsc;
+    @Column(name = "CUSTOMER_BILLER_ID", length = 36)
+    private String customerBillerId;
+    @Column(name = "BILL_PAYMENT_ID", length = 36)
+    private String billPaymentId;
     @Column(name = "IS_PRIMARY_ACCOUNT")
     private Boolean primaryAccount;
     @Column(name = "AMOUNT", nullable = false, precision = 19, scale = 2)
@@ -109,6 +113,8 @@ public class WorkflowSaga {
     public String getAccountNumber() { return accountNumber; }
     public String getAccountType() { return accountType; }
     public String getBranchIfsc() { return branchIfsc; }
+    public String getCustomerBillerId() { return customerBillerId; }
+    public String getBillPaymentId() { return billPaymentId; }
     public boolean isPrimaryAccount() { return Boolean.TRUE.equals(primaryAccount); }
     public BigDecimal getAmount() { return amount; }
     public String getDescription() { return description; }
@@ -118,7 +124,13 @@ public class WorkflowSaga {
     public String getCreditTransactionReference() { return creditTransactionReference; }
     public String getDebitTransactionId() { return debitTransactionId; }
     public String getCreditTransactionId() { return creditTransactionId; }
-    public boolean hasMutation() { return sourceMovementReference != null || destinationMovementReference != null; }
+    public boolean hasMutation() {
+        return sourceMovementReference != null
+                || destinationMovementReference != null
+                || billPaymentId != null
+                || (workflowType == WorkflowType.BILL_PAYMENT
+                        && status == WorkflowStatus.PREREQUISITES_VALIDATED);
+    }
     public void sourceMovementPlanned(String reference) { sourceMovementReference = reference; }
     public void destinationMovementPlanned(String accountId, String reference) { destinationAccountId = accountId; destinationMovementReference = reference; }
     public void sourceMoved(String reference) { sourceMovementReference = reference; status = WorkflowStatus.SOURCE_MOVED; }
@@ -133,6 +145,11 @@ public class WorkflowSaga {
         this.branchIfsc = branchIfsc;
     }
     public void prerequisitesValidated() { status = WorkflowStatus.PREREQUISITES_VALIDATED; }
+    public void billPaymentRequested(String customerBillerId) { this.customerBillerId = customerBillerId; }
+    public void billPaymentCreated(String billPaymentId) {
+        this.billPaymentId = billPaymentId;
+        status = WorkflowStatus.BILL_PAYMENT_CREATED;
+    }
     public void accountCreated(String accountId, String accountNumber, boolean primaryAccount) {
         sourceAccountId = accountId;
         this.accountNumber = accountNumber;

@@ -1,0 +1,53 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: card-service
+  datasource:
+    url: ${CARD_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+    username: ${CARD_DB_USERNAME:BANKING}
+    password: ${CARD_DB_PASSWORD:change-me}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
+        retries: ${KAFKA_PRODUCER_RETRIES:0}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+
+card:
+  encryption-key: ${CARD_ENCRYPTION_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+  maximum-daily-limit: ${CARD_MAX_DAILY_LIMIT:100000.00}
+  validity-years: ${CARD_VALIDITY_YEARS:5}
+  events:
+    issued-topic: ${CARD_ISSUED_TOPIC:card-issued}
+    activated-topic: ${CARD_ACTIVATED_TOPIC:card-activated}
+    blocked-topic: ${CARD_BLOCKED_TOPIC:card-blocked}
+    unblocked-topic: ${CARD_UNBLOCKED_TOPIC:card-unblocked}
+    limit-updated-topic: ${CARD_LIMIT_UPDATED_TOPIC:card-limit-updated}
+
+services:
+  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+  account-service-url: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+logging:
+  level:
+    com.oracle.banking.card: INFO
