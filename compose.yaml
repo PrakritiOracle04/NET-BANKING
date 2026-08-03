@@ -100,6 +100,9 @@ services:
     env_file: .env
     environment:
       BENEFICIARY_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      ACCOUNT_SERVICE_URL: http://account-service:8085
+    depends_on:
+      - account-service
 
   banking-workflow-service:
     build:

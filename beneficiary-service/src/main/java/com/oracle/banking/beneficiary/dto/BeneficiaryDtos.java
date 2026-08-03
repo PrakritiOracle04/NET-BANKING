@@ -2,10 +2,13 @@ package com.oracle.banking.beneficiary.dto;
 
 import com.oracle.banking.beneficiary.entity.Beneficiary;
 import com.oracle.banking.beneficiary.entity.BeneficiaryStatus;
+import com.oracle.banking.beneficiary.entity.BeneficiaryRelationship;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.math.BigDecimal;
 
 public final class BeneficiaryDtos {
     private BeneficiaryDtos() {}
@@ -13,10 +16,9 @@ public final class BeneficiaryDtos {
     public record BeneficiaryRequest(
             @NotBlank @Size(max = 80) String nickname,
             @NotBlank @Size(max = 120) String beneficiaryName,
-            @Size(max = 36) String accountId,
+            @NotNull BeneficiaryRelationship relationship,
             @NotBlank @Size(max = 30) String accountNumber,
-            @Size(max = 120) String bankName,
-            @Size(max = 20) String ifscCode,
+            @NotBlank @Pattern(regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", message = "Invalid IFSC") String ifscCode,
             boolean favourite
     ) {}
 
@@ -27,9 +29,8 @@ public final class BeneficiaryDtos {
             String customerUserId,
             String nickname,
             String beneficiaryName,
-            String accountId,
+            BeneficiaryRelationship relationship,
             String accountNumber,
-            String bankName,
             String ifscCode,
             BeneficiaryStatus status,
             boolean favourite,
@@ -42,9 +43,8 @@ public final class BeneficiaryDtos {
                     beneficiary.getCustomerUserId(),
                     beneficiary.getNickname(),
                     beneficiary.getBeneficiaryName(),
-                    beneficiary.getAccountId(),
+                    beneficiary.getRelationship(),
                     beneficiary.getAccountNumber(),
-                    beneficiary.getBankName(),
                     beneficiary.getIfscCode(),
                     beneficiary.getStatus(),
                     beneficiary.isFavourite(),
@@ -58,8 +58,9 @@ public final class BeneficiaryDtos {
             String beneficiaryId,
             String nickname,
             String beneficiaryName,
+            BeneficiaryRelationship relationship,
             String accountNumber,
-            String bankName,
+            String ifscCode,
             BeneficiaryStatus status,
             boolean favourite
     ) {
@@ -68,8 +69,9 @@ public final class BeneficiaryDtos {
                     beneficiary.getBeneficiaryId(),
                     beneficiary.getNickname(),
                     beneficiary.getBeneficiaryName(),
+                    beneficiary.getRelationship(),
                     beneficiary.getAccountNumber(),
-                    beneficiary.getBankName(),
+                    beneficiary.getIfscCode(),
                     beneficiary.getStatus(),
                     beneficiary.isFavourite()
             );
@@ -98,4 +100,14 @@ public final class BeneficiaryDtos {
             );
         }
     }
+
+    public record AccountValidationResponse(
+            String accountId,
+            String customerUserId,
+            String accountNumber,
+            String branchIfsc,
+            String status,
+            BigDecimal availableBalance,
+            boolean active
+    ) {}
 }

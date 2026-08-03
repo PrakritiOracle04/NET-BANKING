@@ -106,6 +106,7 @@ public final class AccountDtos {
             String accountId,
             String customerUserId,
             String accountNumber,
+            String branchIfsc,
             AccountStatus status,
             BigDecimal availableBalance,
             boolean active
@@ -115,6 +116,7 @@ public final class AccountDtos {
                     account.getAccountId(),
                     account.getCustomerUserId(),
                     account.getAccountNumber(),
+                    account.getBranchIfsc(),
                     account.getStatus(),
                     account.getAvailableBalance(),
                     account.getStatus() == AccountStatus.ACTIVE

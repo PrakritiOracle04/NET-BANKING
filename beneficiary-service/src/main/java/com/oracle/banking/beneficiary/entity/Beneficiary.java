@@ -36,16 +36,14 @@ public class Beneficiary {
     @Column(name = "BENEFICIARY_NAME", nullable = false, length = 120)
     private String beneficiaryName;
 
-    @Column(name = "ACCOUNT_ID", length = 36)
-    private String accountId;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "RELATIONSHIP", nullable = false, length = 20)
+    private BeneficiaryRelationship relationship;
 
     @Column(name = "ACCOUNT_NUMBER", nullable = false, length = 30)
     private String accountNumber;
 
-    @Column(name = "BANK_NAME", length = 120)
-    private String bankName;
-
-    @Column(name = "IFSC_CODE", length = 20)
+    @Column(name = "IFSC_CODE", nullable = false, length = 11)
     private String ifscCode;
 
     @Enumerated(EnumType.STRING)
@@ -82,12 +80,10 @@ public class Beneficiary {
     public void setNickname(String nickname) { this.nickname = nickname; }
     public String getBeneficiaryName() { return beneficiaryName; }
     public void setBeneficiaryName(String beneficiaryName) { this.beneficiaryName = beneficiaryName; }
-    public String getAccountId() { return accountId; }
-    public void setAccountId(String accountId) { this.accountId = accountId; }
+    public BeneficiaryRelationship getRelationship() { return relationship; }
+    public void setRelationship(BeneficiaryRelationship relationship) { this.relationship = relationship; }
     public String getAccountNumber() { return accountNumber; }
     public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
-    public String getBankName() { return bankName; }
-    public void setBankName(String bankName) { this.bankName = bankName; }
     public String getIfscCode() { return ifscCode; }
     public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
     public BeneficiaryStatus getStatus() { return status; }

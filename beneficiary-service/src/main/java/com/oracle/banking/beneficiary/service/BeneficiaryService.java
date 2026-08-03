@@ -4,27 +4,43 @@ import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.BeneficiaryRequest;
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.BeneficiaryResponse;
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.BeneficiarySummaryResponse;
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.BeneficiaryVerificationResponse;
+import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.AccountValidationResponse;
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.UpdateBeneficiaryStatusRequest;
 import com.oracle.banking.beneficiary.dto.BeneficiaryDtos.VerifyBeneficiaryRequest;
 import com.oracle.banking.beneficiary.entity.Beneficiary;
 import com.oracle.banking.beneficiary.entity.BeneficiaryStatus;
+import com.oracle.banking.beneficiary.entity.BeneficiaryRelationship;
+import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.BadRequest;
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.Duplicate;
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.NotFound;
 import com.oracle.banking.beneficiary.repository.BeneficiaryRepository;
+import com.oracle.banking.shared.constants.SecurityConstants;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class BeneficiaryService {
     private static final Logger log = LoggerFactory.getLogger(BeneficiaryService.class);
 
     private final BeneficiaryRepository repository;
+    private final RestClient accountClient;
+    private final String internalApiKey;
 
-    public BeneficiaryService(BeneficiaryRepository repository) {
+    public BeneficiaryService(
+            BeneficiaryRepository repository,
+            RestClient.Builder restClientBuilder,
+            @Value("${services.account-service-url}") String accountServiceUrl,
+            @Value("${services.internal-api-key}") String internalApiKey) {
         this.repository = repository;
+        this.accountClient = restClientBuilder.baseUrl(accountServiceUrl).build();
+        this.internalApiKey = internalApiKey;
     }
 
     public List<BeneficiarySummaryResponse> list(String userId, boolean favouritesOnly) {
@@ -49,6 +65,7 @@ public class BeneficiaryService {
         if (repository.findByCustomerUserIdAndAccountNumber(userId, request.accountNumber()).isPresent()) {
             throw new Duplicate("Beneficiary account already exists");
         }
+        validateDestination(userId, request);
         Beneficiary beneficiary = new Beneficiary();
         apply(beneficiary, request);
         beneficiary.setCustomerUserId(userId);
@@ -65,6 +82,7 @@ public class BeneficiaryService {
         if (repository.existsByCustomerUserIdAndNicknameIgnoreCaseAndBeneficiaryIdNot(userId, request.nickname(), id)) {
             throw new Duplicate("Beneficiary nickname already exists");
         }
+        validateDestination(userId, request);
         apply(beneficiary, request);
         beneficiary.setStatus(BeneficiaryStatus.PENDING);
         log.info("Updated beneficiary {} for customer user ID {}", id, userId);
@@ -100,10 +118,40 @@ public class BeneficiaryService {
     private void apply(Beneficiary beneficiary, BeneficiaryRequest request) {
         beneficiary.setNickname(request.nickname());
         beneficiary.setBeneficiaryName(request.beneficiaryName());
-        beneficiary.setAccountId(request.accountId());
+        beneficiary.setRelationship(request.relationship());
         beneficiary.setAccountNumber(request.accountNumber());
-        beneficiary.setBankName(request.bankName());
         beneficiary.setIfscCode(request.ifscCode());
         beneficiary.setFavourite(request.favourite());
+    }
+
+    private void validateDestination(String userId, BeneficiaryRequest request) {
+        AccountValidationResponse account;
+        try {
+            account = accountClient.get()
+                    .uri("/internal/accounts/number/{accountNumber}/validate", request.accountNumber())
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .retrieve()
+                    .body(AccountValidationResponse.class);
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) {
+                throw new BadRequest("Beneficiary account could not be validated");
+            }
+            throw new BadRequest("Account service is unavailable");
+        } catch (RestClientException exception) {
+            throw new BadRequest("Account service is unavailable");
+        }
+        if (account == null || !account.active()) {
+            throw new BadRequest("Beneficiary account must be active");
+        }
+        if (!request.ifscCode().equals(account.branchIfsc())) {
+            throw new BadRequest("IFSC does not match the beneficiary account");
+        }
+        boolean selfOwned = userId.equals(account.customerUserId());
+        if (selfOwned && request.relationship() != BeneficiaryRelationship.SELF) {
+            throw new BadRequest("Use SELF relationship for your own account");
+        }
+        if (!selfOwned && request.relationship() == BeneficiaryRelationship.SELF) {
+            throw new BadRequest("SELF relationship requires an account owned by the customer");
+        }
     }
 }
