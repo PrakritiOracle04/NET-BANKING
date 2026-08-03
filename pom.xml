@@ -29,6 +29,7 @@
         <module>transaction-service</module>
         <module>banking-workflow-service</module>
         <module>notification-service</module>
+        <module>billpayment-service</module>
     </modules>
 
     <properties>
