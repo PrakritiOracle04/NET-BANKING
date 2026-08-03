@@ -1,10 +1,15 @@
 package com.oracle.banking.customer.dto;
 
 import com.oracle.banking.customer.entity.CustomerProfile;
+import com.oracle.banking.customer.entity.CustomerKyc;
+import com.oracle.banking.customer.entity.KycStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.time.Instant;
 
 public final class CustomerDtos {
     private CustomerDtos() {}
@@ -56,4 +61,48 @@ public final class CustomerDtos {
                     profile.getProfileStatus());
         }
     }
+
+    public record KycSubmission(
+            @NotBlank @Pattern(regexp = "^[0-9]{12}$", message = "Aadhaar must contain exactly 12 digits")
+            String aadhaarNumber,
+            @NotBlank @Pattern(regexp = "^[A-Za-z]{5}[0-9]{4}[A-Za-z]$", message = "Invalid PAN format")
+            String panNumber
+    ) {}
+
+    public record KycStatusUpdate(
+            @NotNull KycStatus status,
+            @Size(max = 240) String rejectionReason
+    ) {}
+
+    public record KycResponse(
+            String kycId,
+            String userId,
+            String maskedAadhaar,
+            String maskedPan,
+            KycStatus status,
+            String rejectionReason,
+            Instant verifiedAt,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        public static KycResponse from(CustomerKyc kyc) {
+            return new KycResponse(
+                    kyc.getKycId(),
+                    kyc.getUserId(),
+                    "XXXXXXXX" + kyc.getAadhaarLast4(),
+                    "XXXXXX" + kyc.getPanLast4(),
+                    kyc.getStatus(),
+                    kyc.getRejectionReason(),
+                    kyc.getVerifiedAt(),
+                    kyc.getCreatedAt(),
+                    kyc.getUpdatedAt());
+        }
+    }
+
+    public record OnboardingStatus(
+            String userId,
+            boolean profileComplete,
+            KycStatus kycStatus,
+            boolean eligibleForAccountOpening
+    ) {}
 }

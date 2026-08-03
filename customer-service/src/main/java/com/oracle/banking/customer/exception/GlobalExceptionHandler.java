@@ -1,3 +1,51 @@
 package com.oracle.banking.customer.exception;
-import com.oracle.banking.customer.exception.CustomerExceptions.*;import com.oracle.banking.shared.response.ErrorResponse;import jakarta.servlet.http.HttpServletRequest;import org.springframework.http.*;import org.springframework.security.access.AccessDeniedException;import org.springframework.web.bind.annotation.*;
-@RestControllerAdvice public class GlobalExceptionHandler{@ExceptionHandler(NotFound.class)ResponseEntity<ErrorResponse> n(NotFound e,HttpServletRequest r){return x(HttpStatus.NOT_FOUND,e.getMessage(),r);}@ExceptionHandler(Duplicate.class)ResponseEntity<ErrorResponse>d(Duplicate e,HttpServletRequest r){return x(HttpStatus.CONFLICT,e.getMessage(),r);}@ExceptionHandler(Unauthorized.class)ResponseEntity<ErrorResponse>u(Unauthorized e,HttpServletRequest r){return x(HttpStatus.UNAUTHORIZED,e.getMessage(),r);}@ExceptionHandler(AccessDeniedException.class)ResponseEntity<ErrorResponse>a(AccessDeniedException e,HttpServletRequest r){return x(HttpStatus.FORBIDDEN,"Access denied",r);}@ExceptionHandler(Exception.class)ResponseEntity<ErrorResponse>g(Exception e,HttpServletRequest r){return x(HttpStatus.INTERNAL_SERVER_ERROR,"An unexpected error occurred",r);}private ResponseEntity<ErrorResponse>x(HttpStatus s,String m,HttpServletRequest r){return ResponseEntity.status(s).body(ErrorResponse.of(m,r.getRequestURI()));}}
+
+import com.oracle.banking.customer.exception.CustomerExceptions.BadRequest;
+import com.oracle.banking.customer.exception.CustomerExceptions.Duplicate;
+import com.oracle.banking.customer.exception.CustomerExceptions.NotFound;
+import com.oracle.banking.customer.exception.CustomerExceptions.Unauthorized;
+import com.oracle.banking.shared.response.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler({BadRequest.class, MethodArgumentNotValidException.class})
+    ResponseEntity<ErrorResponse> badRequest(Exception exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(NotFound.class)
+    ResponseEntity<ErrorResponse> notFound(NotFound exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(Duplicate.class)
+    ResponseEntity<ErrorResponse> duplicate(Duplicate exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(Unauthorized.class)
+    ResponseEntity<ErrorResponse> unauthorized(Unauthorized exception, HttpServletRequest request) {
+        return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ErrorResponse> forbidden(AccessDeniedException exception, HttpServletRequest request) {
+        return response(HttpStatus.FORBIDDEN, "Access denied", request);
+    }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ErrorResponse> unexpected(Exception exception, HttpServletRequest request) {
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+    }
+
+    private ResponseEntity<ErrorResponse> response(HttpStatus status, String message, HttpServletRequest request) {
+        return ResponseEntity.status(status).body(ErrorResponse.of(message, request.getRequestURI()));
+    }
+}
