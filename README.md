@@ -8,16 +8,16 @@ This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. 
 | `shared-kernel` | - | Reusable response contracts, constants, and validation utilities |
 | `auth-service` | 8081 | Registration, BCrypt login, JWT, RBAC, and user sessions |
 | `twofa-service` | 8082 | TOTP setup, QR generation, OTP verification, and encrypted factors |
-| `customer-service` | 8083 | Customer profile lifecycle |
+| `customer-service` | 8083 | Customer profile lifecycle and encrypted KYC |
 | `branch-service` | 8084 | Read-only branch lookup APIs |
-| `account-service` | 8085 | Accounts, balances, status, credit/debit ownership |
+| `account-service` | 8085 | Generated accounts, balances, status, credit/debit ownership |
 | `beneficiary-service` | 8086 | Beneficiary CRUD, status, transfer verification |
 | `transaction-service` | 8087 | Transaction records, history, search, statements |
-| `banking-workflow-service` | 8088 | Deposit, withdrawal, and transfer orchestration |
+| `banking-workflow-service` | 8088 | Account-opening, deposit, withdrawal, and transfer orchestration |
 
-The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service.
+The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service. See `DATA_OWNERSHIP.md` for the field-level ownership rules and `API_DOCUMENTATION.md` for complete routes and flows.
 
-No service accesses another service's repository or table. Cross-service work uses REST endpoints protected with an internal API key. Customer ownership uses the immutable Auth `userId`, never the mutable username. The banking workflow service owns its Saga state table, coordinates synchronous REST calls, and publishes Kafka events only after successful business operations.
+No service accesses another service's repository or table. Cross-service work uses REST endpoints protected with an internal API key. Customer ownership uses the immutable Auth `userId`, never the mutable username. Auth owns verified email/phone; Customer owns profile and encrypted KYC; Account owns generated account numbers. The banking workflow service owns its Saga state table, coordinates synchronous REST calls, and publishes Kafka events only after successful business operations.
 
 ## Configuration
 
@@ -37,7 +37,7 @@ Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services
 
 Kafka and Kafbat Kafka UI are included in `compose.yaml`. Banking containers connect through `kafka:29092`; host-side Kafka tools can use `localhost:9092`. Kafka UI is available at `http://localhost:8081`.
 
-Use `.env.example` as the key template for local setup. Create the Oracle user/schema yourself, then start the services; there are no manual table migration scripts for Phase 2.
+Keep real configuration in the ignored root `.env`. Create the Oracle user/schema yourself, then start the services. JPA entities are currently the development DDL source of truth; use a fresh schema after structural changes because `ddl-auto: update` is not a production migration engine.
 
 ## Build and Run
 
@@ -48,16 +48,16 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
 .\mvnw.cmd -DskipTests package
 ```
 
-Start all services:
+Start all services with Podman Compose:
 
 ```powershell
-.\run-all-services.ps1
+podman-compose up -d --build
 ```
 
 Stop all services:
 
 ```powershell
-.\stop-all-services.ps1
+podman-compose down
 ```
 
 Swagger is available at `/swagger-ui` on each service. Send external requests through the gateway:

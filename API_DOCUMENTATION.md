@@ -1,123 +1,96 @@
-# Internet Banking API & Service Guide
+# Internet Banking API and Service Guide
 
-This is the starting point for developers integrating with, operating, or extending the Internet Banking platform.
+This guide is the starting point for developers integrating with, operating, or extending the platform. External clients must use the API Gateway at `http://localhost:8080`; `/internal/**` routes are service-to-service contracts and are never exposed by the gateway.
 
-## 1. Local topology
+See [DATA_OWNERSHIP.md](DATA_OWNERSHIP.md) for the authoritative ownership and duplication rules.
 
-| Service | Local port | Public gateway prefix | Responsibility |
+## Local topology
+
+| Service | Port | Gateway path | Responsibility |
 | --- | ---: | --- | --- |
-| API Gateway | 8080 | — | Single public entry point, CORS, request logging, routing |
-| Auth Service | 8081 | `/api/auth/**` | Registration, login, JWT issuance, RBAC, sessions |
-| 2FA Service | 8082 | `/api/2fa/**` | TOTP enrolment, QR code generation, OTP verification |
-| Customer Service | 8083 | `/api/customers/**` | Customer profile creation, retrieval, update |
-| Branch Service | 8084 | `/api/branches/**` | Read-only branch directory and IFSC lookup |
-| Account Service | 8085 | `/api/accounts/**` | Account lifecycle, balances, and mini statements |
-| Beneficiary Service | 8086 | `/api/beneficiaries/**` | Saved transfer destinations and their verification state |
-| Transaction Service | 8087 | `/api/transactions/**` | Transaction history, search, and statements |
-| Banking Workflow Service | 8088 | `/api/banking/**` | Saga orchestration for deposits, withdrawals, and transfers |
-| Notification Service | 8089 | `/api/notifications/**` | SMTP email delivery, templates, delivery history, retries, and Kafka event consumption |
-| Shared Kernel | — | — | Shared API response contracts, security constants, password policy |
-
-External clients should call the API Gateway at `http://localhost:8080`. The gateway forwards each public prefix unchanged to its owning service.
+| API Gateway | 8080 | all public paths | CORS, logging, authentication filtering, routing |
+| Auth Service | 8081 | `/api/auth/**` | Registration, login, JWT, roles, sessions |
+| 2FA Service | 8082 | `/api/2fa/**` | TOTP enrolment, QR generation, verification |
+| Customer Service | 8083 | `/api/customers/**` | Customer profile and KYC |
+| Branch Service | 8084 | `/api/branches/**` | Branch directory and IFSC validation |
+| Account Service | 8085 | `/api/accounts/**` | Account state, balances, statements, movements |
+| Beneficiary Service | 8086 | `/api/beneficiaries/**` | Transfer destinations and verification |
+| Transaction Service | 8087 | `/api/transactions/**` | Immutable transaction history and statements |
+| Banking Workflow Service | 8088 | `/api/banking/**` | Account-opening and money-movement sagas |
+| Notification Service | 8089 | `/api/notifications/**` | Kafka consumers, email rendering, SMTP delivery |
 
 ```text
-Client
-  -> API Gateway :8080
-       -> Auth :8081       /api/auth/**
-       -> 2FA :8082        /api/2fa/**
-       -> Customer :8083   /api/customers/**
-       -> Branch :8084     /api/branches/**
-       -> Account :8085    /api/accounts/**
-       -> Beneficiary :8086 /api/beneficiaries/**
-       -> Transaction :8087 /api/transactions/**
-       -> Workflow :8088   /api/banking/**
-       -> Notification :8089 /api/notifications/**
+Client -> API Gateway :8080
+              |-> Auth :8081
+              |-> 2FA :8082
+              |-> Customer :8083
+              |-> Branch :8084
+              |-> Account :8085
+              |-> Beneficiary :8086
+              |-> Transaction :8087
+              |-> Workflow :8088
+              `-> Notification :8089
 ```
 
-## 2. Start the platform
+## Build and start
 
-1. Ensure `.env` exists in the repository root and contains the Oracle credentials and shared secrets.
-2. Package the services with Maven, then run `podman-compose up -d --build` from the repository root.
-3. The compose network connects services by their service names; the existing Oracle container is reached through `host.containers.internal`.
-4. Use `podman-compose logs -f <service-name>` if a service does not start.
+1. Create the ignored root `.env` with the database, JWT, encryption, Kafka, and SMTP values.
+2. Package all modules: `mvn -DskipTests clean package`.
+3. Start the platform: `podman-compose up -d --build`.
+4. Inspect a service with `podman-compose logs -f <service-name>`.
+5. Stop the project with `podman-compose down`. Oracle is an existing external container and is not removed.
 
-Health checks are available directly on every service:
+Compose connects services by DNS names such as `customer-service:8083`. The existing host-published Oracle container is reached through `host.containers.internal:1521`. Kafka clients inside Compose use `kafka:29092`; host tools use `localhost:9092`. Kafka UI is at `http://localhost:8081`.
 
-| URL |
-| --- |
-| `http://localhost:8081/actuator/health` |
-| `http://localhost:8082/actuator/health` |
-| `http://localhost:8083/actuator/health` |
-| `http://localhost:8084/actuator/health` |
-| `http://localhost:8080/actuator/health` |
+## Authentication and response conventions
 
-Each backend service exposes OpenAPI/Swagger UI at `http://localhost:<port>/swagger-ui`.
-
-## 3. Authentication and response conventions
-
-### JWT
-
-`POST /api/auth/register` and `POST /api/auth/login` are public. All other public business routes require:
+`POST /api/auth/register` and `POST /api/auth/login` are public. Other public routes require:
 
 ```http
-Authorization: Bearer <token returned by login>
+Authorization: Bearer <JWT>
 ```
 
-Tokens are signed by Auth Service using `JWT_SECRET`; protected services must use the same value. The default expiry is 30 minutes (`JWT_EXPIRATION_MINUTES`).
+The JWT subject is the immutable Auth `userId`. Services authorize ownership with this ID, never with username. Administrative routes also require `ROLE_ADMIN`.
 
-### Response envelopes
-
-Successful endpoint responses use:
+Successful calls use the common envelope:
 
 ```json
 {
   "success": true,
-  "message": "Login successful",
+  "message": "Operation completed",
   "data": {},
-  "timestamp": "2026-07-26T08:12:44Z"
+  "timestamp": "2026-08-03T05:00:00Z"
 }
 ```
 
-Errors use:
+Errors contain `success:false`, `message`, `path`, and `timestamp`. Expected status families are: `400` malformed request, `401` absent/invalid JWT, `403` insufficient role or ownership, `404` missing resource, `409` state/idempotency conflict, `503` unavailable downstream dependency or pending saga compensation, and `500` unexpected server failure.
 
-```json
-{
-  "success": false,
-  "message": "Invalid username or password",
-  "path": "/api/auth/login",
-  "timestamp": "2026-07-26T08:12:44Z"
-}
-```
-
-### Internal service requests
-
-Routes under `/internal/**` are not gateway routes and must not be called by browser/mobile clients. They require the shared header below and are used only for service-to-service work:
+Internal routes require this shared header and are not gateway routes:
 
 ```http
 X-Internal-Api-Key: <INTERNAL_API_KEY>
 ```
 
-## 4. Public API reference
+## Customer onboarding lifecycle
 
-Use the gateway base URL below for all routes in this section: `http://localhost:8080`.
+Account opening is intentionally a multi-stage process:
 
-### Auth Service
+```text
+Register
+  -> complete profile
+  -> submit encrypted KYC
+  -> administrator verifies KYC
+  -> open account through Workflow
+  -> Account generates account ID and account number
+```
 
-| Method and route | Authentication | What it does | Request body / result |
-| --- | --- | --- | --- |
-| `POST /api/auth/register` | Public | Creates an `AppUser` with BCrypt password storage and `CUSTOMER` role; then creates the matching customer profile. | Body: `username`, `email`, `phone`, `password`, `fullName`. Returns `userId`, username, email, role, 2FA state. |
-| `POST /api/auth/login` | Public | Validates username/email and password. If 2FA is enabled, validates the supplied OTP before issuing a JWT. | Body: `username`, `password`, optional `otpCode`. Returns token, `Bearer` token type, expiry, username, role, 2FA state. |
-| `POST /api/auth/logout` | Bearer JWT | Invalidates active server-side sessions for the authenticated user. | No body. |
-| `GET /api/auth/me` | Bearer JWT | Returns the authenticated user's ID, username, email, and role. | No body. |
+Auth owns verified email and phone. Customer owns personal/address information. Customer KYC owns encrypted Aadhaar and PAN. Account owns account state. Clients do not repeat email/phone during profile completion or supply IDs/account numbers during opening.
 
-Registration validation: username is 3–60 characters; email must be valid; phone is 7–15 digits with optional leading `+`; password requires at least 8 characters including uppercase, lowercase, number, and special character.
+### 1. Register
 
-Example registration:
+`POST /api/auth/register` returns `201 Created`.
 
-```http
-POST /api/auth/register
-Content-Type: application/json
-
+```json
 {
   "username": "gokul_test",
   "email": "gokul_test@example.com",
@@ -127,201 +100,233 @@ Content-Type: application/json
 }
 ```
 
-### 2FA Service
+Auth creates `APP_USER`, calls Customer's internal create route with only `userId` and `fullName`, then publishes `registration-success` after commit. Username and email are unique. Passwords require uppercase, lowercase, number, special character, and at least eight characters.
 
-| Method and route | Authentication | What it does | Request body / result |
-| --- | --- | --- | --- |
-| `POST /api/2fa/setup` | Bearer JWT | Creates/replaces a disabled TOTP factor and returns setup material. | No body. Returns `secret`, `otpauthUri`, `qrCodeBase64`, issuer, account name, `enabled:false`. |
-| `POST /api/2fa/verify-setup` | Bearer JWT | Verifies the authenticator-app code and enables 2FA. | Body: `{ "otpCode": "123456" }`. |
-| `POST /api/2fa/verify` | Bearer JWT | Verifies a current OTP without changing setup state. | Body: `{ "otpCode": "123456" }`. |
-| `POST /api/2fa/disable` | Bearer JWT | Disables the active factor after OTP verification. | Body: `{ "otpCode": "123456" }`. |
-| `GET /api/2fa/status` | Bearer JWT | Returns whether 2FA is enabled for the current user. | No body. |
+### 2. Complete the customer profile
 
-`qrCodeBase64` is a Base64-encoded PNG. Decode it or display it as `data:image/png;base64,<qrCodeBase64>` to scan it with Google Authenticator, Microsoft Authenticator, or a compatible TOTP app. Never log or persist the returned `secret` in a client application.
+`PUT /api/customers/me`:
 
-### Customer Service
+```json
+{
+  "fullName": "Gokul Test",
+  "fatherOrSpouseName": "Parent Name",
+  "dateOfBirth": "1995-05-15",
+  "addressLine1": "10 Example Street",
+  "addressLine2": "",
+  "city": "Bengaluru",
+  "state": "Karnataka",
+  "country": "India",
+  "postalCode": "560001"
+}
+```
 
-| Method and route | Authentication | What it does | Request body / result |
-| --- | --- | --- | --- |
-| `GET /api/customers/me` | Bearer JWT | Returns the current user's customer profile. | No body. |
-| `PUT /api/customers/me` | Bearer JWT | Updates the current user's personal/contact/address fields. | `fullName`, `phone`, optional `addressLine1`, `addressLine2`, `city`, `state`, `country`, `postalCode`. |
-| `GET /api/customers/{id}` | Bearer JWT with `ADMIN` role | Retrieves a customer profile by customer ID. | No body. |
+`GET /api/customers/me` returns the profile. Email and phone are deliberately absent because Auth owns them.
 
-Customer profiles include `customerId`, `userId`, full name, email, phone, address fields, `kycStatus`, and `profileStatus`. Email is created from the Auth registration and is not changed by the profile update API.
+### 3. Submit and review KYC
 
-### Branch Service
-
-| Method and route | Authentication | What it does |
-| --- | --- | --- |
-| `GET /api/branches` | Bearer JWT | Lists branch summaries. |
-| `GET /api/branches/ifsc/{ifsc}` | Bearer JWT | Finds a branch by IFSC. IFSC format is `^[A-Z]{4}0[A-Z0-9]{6}$`. |
-| `GET /api/branches/{id}` | Bearer JWT | Finds a branch by branch ID. |
-
-Branch results contain `branchId`, `branchName`, `ifsc`, `city`; individual lookups also include `state`.
-
-### Account, beneficiary, and transaction services
-
-| Route family | Authentication | What it does |
-| --- | --- | --- |
-| `GET, POST /api/accounts` and `GET /api/accounts/{id}` | Bearer JWT | Lists, creates, and retrieves accounts. |
-| `GET /api/accounts/{id}/balance` | Bearer JWT | Returns the current balance. |
-| `GET /api/accounts/{id}/mini-statement` | Bearer JWT | Returns recent account activity. Account Service requests the read-only recent-transaction data from Transaction Service. |
-| `PUT /api/accounts/{id}/status` | Bearer JWT with `ADMIN` role | Updates an account's status. |
-| `GET, POST /api/beneficiaries`, `GET /api/beneficiaries/{id}` | Bearer JWT | Lists, creates, and retrieves the current customer's beneficiaries. |
-| `PUT, DELETE /api/beneficiaries/{id}` | Bearer JWT | Updates or removes a beneficiary owned by the current customer. |
-| `PUT /api/beneficiaries/{id}/status` | Bearer JWT with `ADMIN` role | Changes beneficiary verification status. |
-| `GET /api/transactions/**` | Bearer JWT | Retrieves transaction history, a transaction by ID, account history, filtered search results, or statements. |
-
-Customer ownership is persisted and authorized using the immutable Auth `userId` from the JWT subject. Usernames remain display/login attributes only. Admin account creation and filtering use `customerUserId`; account, beneficiary, transaction, and workflow records store `CUSTOMER_USER_ID`.
-
-### Banking Workflow Service (Saga-backed money operations)
-
-These are the only public routes that move money. Every request must include a new, client-generated `Idempotency-Key` value. Reuse the same key only to retry the exact same request after a timeout: a completed workflow returns the original result, while a failed/compensated workflow returns `409 Conflict` so the client must use a new key.
+Customer submission:
 
 ```http
-Authorization: Bearer <token>
-Idempotency-Key: 6c0b9bca-7b04-46cb-8fb0-0eb951afc8ef
+PUT /api/customers/me/kyc
 ```
 
-| Method and route | What it does | Body |
+```json
+{
+  "aadhaarNumber": "123456789012",
+  "panNumber": "ABCDE1234F"
+}
+```
+
+`GET /api/customers/me/kyc` returns only masked values. Aadhaar and PAN are encrypted with AES-GCM at rest and indexed through non-reversible HMAC fingerprints for uniqueness checks.
+
+Administrative review:
+
+```http
+PUT /api/customers/{userId}/kyc/status
+```
+
+```json
+{ "status": "VERIFIED", "rejectionReason": null }
+```
+
+Valid states are `PENDING`, `VERIFIED`, and `REJECTED`. A rejection should include a reason.
+
+### 4. Open an account
+
+`POST /api/banking/accounts/open` returns `201 Created` and requires an `Idempotency-Key`.
+
+```json
+{
+  "accountType": "SAVINGS",
+  "branchIfsc": "ORCL0000001"
+}
+```
+
+Workflow verifies that the profile is complete, KYC is `VERIFIED`, and the IFSC exists. It then calls Account's internal opening route. Account generates a UUID string ID and unique 12-digit account number, initializes both balances to zero, and marks only the customer's first account as primary. Types are `SAVINGS`, `CURRENT`, and `SALARY`.
+
+A replay with the same key and identical body returns the original account. Reusing that key with a different body returns `409 Conflict`.
+
+## Public API reference
+
+All routes below use `http://localhost:8080`.
+
+### Auth
+
+| Method and route | Access | Purpose |
 | --- | --- | --- |
-| `POST /api/banking/deposit` | Credits an owned active account and records a credit transaction. | `accountId`, `amount`, optional `description` |
-| `POST /api/banking/withdraw` | Debits an owned active account and records a debit transaction. | `accountId`, `amount`, optional `description` |
-| `POST /api/banking/transfer` | Validates ownership, destination account, and verified beneficiary; debits source, credits destination, then records both transactions. | `sourceAccountId`, `destinationAccountNumber`, `amount`, optional `description` |
+| `POST /api/auth/register` | Public | Register app credentials and base customer profile |
+| `POST /api/auth/login` | Public | Validate password and optional OTP; return JWT |
+| `POST /api/auth/logout` | JWT | Invalidate active sessions |
+| `GET /api/auth/me` | JWT | Return current Auth identity |
 
-The workflow is the sole coordinator: it calls Account, Beneficiary, and Transaction services directly. None of those services calls the next service in a money-moving workflow.
+Login accepts `username`, `password`, and optional `otpCode`. When 2FA is enabled, a missing/invalid OTP fails and no JWT is issued. The response's `twoFactorEnabled` reflects the stored factor state.
 
-### Notification Service
+### 2FA
 
-Notification Service is the platform's only SMTP client. Other services must publish notification events to Kafka or use the Notification Service API; they must never connect to SMTP directly.
+| Method and route | Purpose |
+| --- | --- |
+| `POST /api/2fa/setup` | Return secret, `otpauthUri`, and Base64 PNG QR code |
+| `POST /api/2fa/verify-setup` | Verify `{ "otpCode": "123456" }` and enable TOTP |
+| `POST /api/2fa/verify` | Verify a current code |
+| `POST /api/2fa/disable` | Verify a code and disable TOTP |
+| `GET /api/2fa/status` | Return current enabled state |
 
-| Method and route | Authentication | What it does |
+Display the QR as `data:image/png;base64,<qrCodeBase64>`. Do not log or persist the plaintext secret in clients.
+
+### Customer and branch
+
+| Method and route | Access | Purpose |
 | --- | --- | --- |
-| `POST /api/notifications/email/send` | Bearer JWT | Renders a named template with supplied variables, attempts SMTP delivery, and stores delivery state. Body: `recipient`, `templateName`, optional `variables`, `sourceEvent`, `referenceId`. |
-| `POST /api/notifications/email/test` | Bearer JWT | Sends a test email using the generic template. Body: `recipient`, optional `variables`. |
-| `POST /api/notifications/email/test-kafka` | Bearer JWT | Publishes a test event to `transaction-created`; Notification Service then consumes it and sends the generic email asynchronously. Body: `recipient`, optional `variables`. Returns the Kafka test reference. |
-| `GET /api/notifications/email/{id}` | Bearer JWT | Returns a notification's recipient, subject, status, retry count, and timestamps. |
-| `GET /api/notifications/email/history` | Bearer JWT | Returns persisted notification history, newest first. |
-| `POST /api/notifications/email/{id}/retry` | Bearer JWT | Starts a manual retry for a notification that was not sent. |
-| `GET /api/notifications/email/failed` | Bearer JWT | Lists notifications in `FAILED` state. |
-| `GET /api/notifications/email/pending` | Bearer JWT | Lists notifications in `PENDING` state. |
+| `GET /api/customers/me` | JWT | Own profile |
+| `PUT /api/customers/me` | JWT | Complete/update profile |
+| `PUT /api/customers/me/kyc` | JWT | Submit or resubmit KYC |
+| `GET /api/customers/me/kyc` | JWT | Masked KYC details |
+| `GET /api/customers/{customerId}` | ADMIN | Profile lookup |
+| `PUT /api/customers/{userId}/kyc/status` | ADMIN | Verify/reject KYC |
+| `GET /api/branches` | JWT | List branches |
+| `GET /api/branches/ifsc/{ifsc}` | JWT | Resolve IFSC |
+| `GET /api/branches/{id}` | JWT | Resolve branch ID |
 
-Email status values are `PENDING`, `PROCESSING`, `SENT`, `FAILED`, and `RETRYING`. Initial reusable templates are `WELCOME`, `LOGIN_ALERT`, `PASSWORD_RESET`, and `GENERIC_NOTIFICATION`. Templates support placeholders such as `{{customerName}}`, `{{currentTime}}`, `{{verificationLink}}`, and `{{message}}`, and render both HTML and plain-text bodies.
+### Accounts
 
-## 5. Service dependencies and flows
+There is no public account-creation route. Use Workflow account opening.
 
-| Calling service | Called service | Internal route | Why it is needed |
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `GET /api/accounts` | JWT | Own accounts; ADMIN may filter `customerUserId` |
+| `GET /api/accounts/{id}` | owner/ADMIN | Account details |
+| `GET /api/accounts/{id}/balance` | owner/ADMIN | Ledger and available balances |
+| `GET /api/accounts/{id}/mini-statement?limit=10` | owner/ADMIN | Recent transactions; limit 1-25 |
+| `PUT /api/accounts/{id}/status` | ADMIN | Change account status |
+
+### Beneficiaries
+
+Create and update bodies contain `nickname`, `beneficiaryName`, `relationship`, `accountNumber`, `ifscCode`, and `favourite`. The account must exist and its IFSC must match. `SELF` additionally requires the destination account to belong to the caller. Relationships are `SELF`, `PARENT`, `SPOUSE`, `CHILD`, `SIBLING`, `RELATIVE`, `FRIEND`, `BUSINESS`, and `OTHER`.
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `GET /api/beneficiaries?favouritesOnly=false` | JWT | List own beneficiaries |
+| `POST /api/beneficiaries` | JWT | Create pending beneficiary (`201`) |
+| `GET /api/beneficiaries/{id}` | owner/ADMIN | Beneficiary details |
+| `PUT /api/beneficiaries/{id}` | owner | Update and reset verification |
+| `DELETE /api/beneficiaries/{id}` | owner | Delete (`204`) |
+| `PUT /api/beneficiaries/{id}/status` | ADMIN | Set verification state |
+
+### Transactions and workflows
+
+Transaction GET routes expose transaction-by-ID, account history, filtered search, and statements. Transaction creation/reversal is internal because only Workflow may record money movements.
+
+Every banking workflow request requires a client-generated `Idempotency-Key`:
+
+| Method and route | Purpose | Body |
+| --- | --- | --- |
+| `POST /api/banking/accounts/open` | Validate onboarding and open account | `accountType`, `branchIfsc` |
+| `POST /api/banking/deposit` | Credit owned active account and record transaction | `accountId`, `amount`, optional `description` |
+| `POST /api/banking/withdraw` | Validate funds, debit, and record transaction | `accountId`, `amount`, optional `description` |
+| `POST /api/banking/transfer` | Verify beneficiary, debit source, credit destination, record both sides | `sourceAccountId`, `destinationAccountNumber`, `amount`, optional `description` |
+
+Workflow is the coordinator. Account never calls Beneficiary or Transaction to continue a workflow. The gateway sends the initial request to Workflow, and Workflow calls each required internal API in order.
+
+### Notifications
+
+| Method and route | Purpose |
+| --- | --- |
+| `POST /api/notifications/email/send` | Render and send a named template |
+| `POST /api/notifications/email/test` | Direct generic SMTP test |
+| `POST /api/notifications/email/test-kafka` | Publish and consume a Kafka test event |
+| `GET /api/notifications/email/{id}` | Delivery details |
+| `GET /api/notifications/email/history` | Newest-first delivery history |
+| `POST /api/notifications/email/{id}/retry` | Retry a failed notification |
+| `GET /api/notifications/email/failed` | Failed deliveries |
+| `GET /api/notifications/email/pending` | Pending deliveries |
+
+Normal business notifications are asynchronous: producer -> Kafka -> Notification Service -> template -> SMTP. States are `PENDING`, `PROCESSING`, `SENT`, `FAILED`, and `RETRYING`.
+
+## Internal dependency map
+
+| Caller | Callee | Contract | Reason |
 | --- | --- | --- | --- |
-| Auth | Customer | `POST http://localhost:8083/internal/customers` | Creates the customer profile during registration. |
-| Auth | 2FA | `GET http://localhost:8082/internal/twofa/users/{userId}/status` | Determines whether login requires an OTP. |
-| Auth | 2FA | `POST http://localhost:8082/internal/twofa/verify` | Verifies the OTP as part of a 2FA-enabled login. |
-| Workflow | Account | `GET/POST http://localhost:8085/internal/accounts/**` | Validates accounts, applies idempotent balance movements, and reverses movements during compensation. |
-| Workflow | Beneficiary | `POST http://localhost:8086/internal/beneficiaries/verify-transfer` | Ensures a transfer destination is a verified beneficiary. |
-| Workflow | Transaction | `POST http://localhost:8087/internal/transactions/**` | Records transactions and marks any recorded transaction `REVERSED` during compensation. |
-| Kafka producers | Notification | Kafka topics such as `registration-success`, `login-alert`, and `transaction-created` | Delivers asynchronous notification events. Events must include a recipient address before an email can be sent. |
+| Auth | Customer | `POST /internal/customers` | Create minimal profile during registration |
+| Auth | 2FA | status and verify routes | Enforce TOTP before issuing JWT |
+| Workflow | Customer | `GET /internal/customers/{userId}/onboarding-status` | Profile/KYC prerequisite |
+| Workflow | Branch | `GET /internal/branches/ifsc/{ifsc}` | Validate opening branch |
+| Workflow | Account | `POST /internal/accounts/open` | Idempotent account creation |
+| Beneficiary | Account | account-number validation | Validate destination and IFSC |
+| Workflow | Account | validation, debit, credit, reversal routes | Apply/reverse idempotent movements |
+| Workflow | Beneficiary | `POST /internal/beneficiaries/verify-transfer` | Require verified destination |
+| Workflow | Transaction | create and reverse routes | Persist/reverse transaction records |
+| Account | Transaction | recent-transactions route | Read-only mini statement composition |
+| Auth/Workflow | Kafka | domain topics | Publish notification events after success |
+| Notification | Kafka | domain topics | Consume and deliver email |
 
-### Registration flow
+## Saga behavior
 
-```text
-POST /api/auth/register -> Gateway -> Auth
-Auth stores AppUser and role assignment
-Auth -> Customer internal create (X-Internal-Api-Key)
-Customer stores CustomerProfile
-After commit: Auth -> Kafka registration-success -> Notification -> WELCOME email
-Auth returns 201 Created
-```
-
-Customer Service must be running before registration. If it is unavailable, Auth cannot complete the profile-creation dependency and registration returns an error.
-
-### Login flow
+`BANKING_WORKFLOWS` stores the workflow type, request identity, status, request snapshot, downstream references, and failure/compensation state. Each mutating step is persisted before the next remote call. Money-movement compensation runs in reverse order:
 
 ```text
-POST /api/auth/login -> Gateway -> Auth
-Auth validates BCrypt password
-Auth -> 2FA internal status
-If enabled: Auth -> 2FA internal verify (otpCode required)
-Auth creates UserSession
-After commit: Auth -> Kafka login-alert -> Notification -> LOGIN_ALERT email
-Auth returns JWT
+reverse recorded credit transaction
+  -> reverse recorded debit transaction
+  -> reverse destination movement
+  -> reverse source movement
 ```
 
-2FA Service must be running for login because Auth always checks 2FA status.
+Account opening has no compensating deletion: all prerequisites are checked before creation, and the Account internal API is idempotent by `openingReference`. If Workflow loses the response, retrying safely returns the already-created account.
 
-### Saga workflow and compensation
+`COMPENSATION_PENDING` means an automatic scheduled retry is required; clients receive `503`. A completed exact replay returns the stored response. A key reused for different input returns `409`.
 
-```text
-Gateway -> Workflow -> Account (debit/credit) -> Transaction
-                         |
-                         +-> Beneficiary verification (transfer only)
+## Database source of truth
 
-If a later step fails:
-Workflow -> Transaction reverse (when recorded)
-         -> Account reverse destination movement (transfer only)
-         -> Account reverse source movement
-```
+The service-local JPA entities and their `@Table`, `@Column`, `@Index`, `@UniqueConstraint`, and relationship annotations are the current DDL source of truth. Every data-owning service uses Hibernate `spring.jpa.hibernate.ddl-auto=update` against the shared local Oracle schema.
 
-`BANKING_WORKFLOWS` stores each workflow's idempotency key, state, references, and compensation progress. `ACCOUNT_MOVEMENTS` stores every applied account movement and its reversal state. This makes a new Saga route extensible: add its type and steps to Workflow Service, persist each successful step before the next remote call, and add its compensating action in reverse order. `COMPENSATION_PENDING` workflows retry on the Workflow Service scheduler; clients receive `503 Service Unavailable` until recovery succeeds.
+This is convenient for development but is not a production migration strategy. Hibernate update does not reliably evolve existing enum check constraints or perform destructive renames. After an entity contract changes, use a fresh disposable schema for validation. Before production, introduce ordered Flyway or Liquibase migrations and change Hibernate to `validate`.
 
-### Notification flow
+Identifiers are UUID values represented as `VARCHAR2(36)` because the project intentionally kept portable string UUID storage. Primary keys, uniqueness rules, foreign keys that remain inside the same service-owned data boundary, and query indexes are defined in the entities. Cross-service references such as `CUSTOMER_USER_ID` are intentionally not database foreign keys because the owning record belongs to Auth.
 
-```text
-Normal notification:
-Producer Service -> Kafka -> Notification Service -> Template Renderer -> SMTP -> Recipient
+## Required environment variables
 
-Manual or test notification:
-Client -> Gateway -> Notification Service -> Template Renderer -> SMTP -> Recipient
-```
+Keep actual values only in the ignored `.env`.
 
-Kafka handling is asynchronous: a producer never waits for SMTP delivery. Notification Service writes an `EMAIL_NOTIFICATION` record, attempts delivery, and records every attempt in `EMAIL_DELIVERY_LOG`. Temporary failures enter `RETRYING` and are retried by the Notification Service scheduler. SMTP credentials stay only in the ignored `.env` file.
-
-## 6. Data ownership
-
-Each service owns its own entity model and database tables; no service reads another service repository or table.
-
-| Service | Owned entities |
+| Variable group | Purpose |
 | --- | --- |
-| Auth | `AppUser`, `Role`, `UserSession` |
-| 2FA | `AuthFactor` |
-| Customer | `CustomerProfile` |
-| Branch | `Branch` |
-| Account | `Account`, `AccountMovement` |
-| Beneficiary | `Beneficiary` |
-| Transaction | `BankTransaction` |
-| Banking Workflow | `WorkflowSaga` (`BANKING_WORKFLOWS`) |
-| Notification | `EmailNotification` (`EMAIL_NOTIFICATION`), `EmailTemplate` (`EMAIL_TEMPLATE`), `EmailDeliveryLog` (`EMAIL_DELIVERY_LOG`) |
+| `*_DB_URL`, `*_DB_USERNAME`, `*_DB_PASSWORD` | Oracle connection for each data-owning service |
+| `JWT_SECRET` | Shared JWT signature verification secret |
+| `INTERNAL_API_KEY` | Shared credential for `/internal/**` calls |
+| `TWOFA_ENCRYPTION_KEY` | AES key for TOTP secrets |
+| `KYC_ENCRYPTION_KEY` | AES key and fingerprint derivation material for Aadhaar/PAN |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka connection |
+| `SMTP_*` | Notification-only SMTP transport and sender settings |
+| `*_SERVICE_URL` | Gateway and internal client destinations |
+| `CORS_ALLOWED_ORIGINS` | Browser origins allowed by Gateway |
 
-`legacy-entity-reference/` retains the original entity files as reference material only. It is outside a Maven source root and is not compiled by Phase 1.
+## Troubleshooting
 
-## 7. Configuration needed by a developer
-
-Keep secrets only in the ignored `.env` file.
-
-| Variable | Used by | Notes |
-| --- | --- | --- |
-| `AUTH_DB_URL`, `AUTH_DB_USERNAME`, `AUTH_DB_PASSWORD` | Auth | Oracle connection |
-| `TWOFA_DB_URL`, `TWOFA_DB_USERNAME`, `TWOFA_DB_PASSWORD` | 2FA | Oracle connection |
-| `CUSTOMER_DB_URL`, `CUSTOMER_DB_USERNAME`, `CUSTOMER_DB_PASSWORD` | Customer | Oracle connection |
-| `BRANCH_DB_URL`, `BRANCH_DB_USERNAME`, `BRANCH_DB_PASSWORD` | Branch | Oracle connection |
-| `JWT_SECRET` | Auth, 2FA, Customer, Branch | Same strong Base64 secret in all protected services |
-| `INTERNAL_API_KEY` | Auth, 2FA, Customer | Same non-default secret for internal routes |
-| `TWOFA_ENCRYPTION_KEY` | 2FA | Separate Base64 256-bit AES key for encrypted TOTP secrets |
-| `AUTH_SERVICE_URL`, `TWOFA_SERVICE_URL`, `CUSTOMER_SERVICE_URL`, `BRANCH_SERVICE_URL` | Gateway / Auth | Optional overrides for non-local deployments |
-| `CORS_ALLOWED_ORIGINS` | Gateway | Optional allowed frontend origin; defaults to `http://localhost:3000` |
-| `NOTIFICATION_DB_URL`, `NOTIFICATION_DB_USERNAME`, `NOTIFICATION_DB_PASSWORD` | Notification | Oracle connection for notification-owned tables. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Notification | SMTP transport connection. Never commit these values. |
-| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_AUTH`, `SMTP_STARTTLS_ENABLE` | Notification | Sender identity and SMTP security settings. |
-| `NOTIFICATION_RETRY_DELAY_MS`, `NOTIFICATION_MAX_RETRIES` | Notification | Retry scheduler interval and retry limit. |
-| `KAFKA_BOOTSTRAP_SERVERS` | Auth, Workflow, Notification | Kafka bootstrap connection. Compose configures these services to use the internal listener at `kafka:29092`; host-side tools use `localhost:9092`. |
-
-## 8. Common troubleshooting
-
-| Symptom | Likely cause / action |
+| Symptom | Check |
 | --- | --- |
-| `An unexpected error occurred` on registration | Verify Customer Service is running and inspect `logs/auth-service.error.log` and `logs/customer-service.error.log`. |
-| Login fails after enabling 2FA | Supply a current six-digit `otpCode` from the enrolled authenticator app; verify 2FA Service is running. |
-| `401 Unauthorized` on a business route | Send `Authorization: Bearer <token>` and confirm all protected services share the same `JWT_SECRET`. |
-| Internal call rejects its key | Ensure Auth, 2FA, and Customer use exactly the same `INTERNAL_API_KEY`. |
-| Duplicate registration error | Choose a new username and email; both must be unique in Auth Service. |
-| JAR starts but database actions fail | Confirm Oracle is running and the relevant `*_DB_*` values in `.env` point to the expected service/database. |
-| Notification status is `FAILED` or `RETRYING` | Check SMTP host, port, app password, sender address, TLS settings, and outbound port reachability. For Gmail, use a Google App Password rather than the account password. |
-| Notification Service cannot consume Kafka events | Confirm the Compose Kafka service is healthy and Auth, Workflow, and Notification use `KAFKA_BOOTSTRAP_SERVERS=kafka:29092`. Kafka UI is available at `http://localhost:8081`. |
+| Registration fails | Auth and Customer logs; shared internal key |
+| Login fails after 2FA | Current OTP and 2FA availability |
+| Business route returns `401` | Bearer token and shared JWT secret |
+| Internal call returns `401/403` | Exact `INTERNAL_API_KEY` match |
+| Account opening returns `409` | Profile completeness, KYC status, idempotency reuse |
+| Old enum produces Oracle check violation | Recreate disposable schema or add an explicit migration |
+| Notification retries/fails | Kafka health, recipient, SMTP app password/TLS |
+| Container exits | `podman-compose logs <service-name>` and Oracle reachability |
