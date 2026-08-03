@@ -80,6 +80,15 @@ public class InternalBillPaymentController {
         return service.cancel(id, request);
     }
 
+    @PutMapping("/bill-payments/workflow/{reference}/cancel")
+    BillPaymentResponse cancelByWorkflowReference(
+            @PathVariable String reference,
+            @Valid @RequestBody InternalFailBillPaymentRequest request,
+            @RequestHeader(SecurityConstants.INTERNAL_API_KEY_HEADER) String suppliedKey) {
+        requireKey(suppliedKey);
+        return service.cancelByWorkflowReference(reference, request);
+    }
+
     private void requireKey(String suppliedKey) {
         if (!internalApiKey.equals(suppliedKey)) throw new Forbidden("Invalid internal API key");
     }

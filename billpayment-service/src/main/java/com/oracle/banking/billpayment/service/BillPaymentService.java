@@ -223,12 +223,21 @@ public class BillPaymentService {
     @Transactional
     public BillPaymentResponse cancel(String id, InternalFailBillPaymentRequest request) {
         BillPayment payment = payment(id);
-        if (payment.getStatus() == BillPaymentStatus.SUCCESS) {
-            throw new Conflict("Successful bill payment cannot be cancelled");
-        }
         if (payment.getStatus() == BillPaymentStatus.CANCELLED) return BillPaymentResponse.from(payment);
         payment.cancel(request.reason());
         log.info("Cancelled bill payment {}", id);
+        return BillPaymentResponse.from(paymentRepository.save(payment));
+    }
+
+    @Transactional
+    public BillPaymentResponse cancelByWorkflowReference(
+            String workflowReference,
+            InternalFailBillPaymentRequest request) {
+        BillPayment payment = paymentRepository.findByWorkflowReference(workflowReference)
+                .orElseThrow(() -> new NotFound("Bill payment not found"));
+        if (payment.getStatus() == BillPaymentStatus.CANCELLED) return BillPaymentResponse.from(payment);
+        payment.cancel(request.reason());
+        log.info("Cancelled bill payment for workflow {}", workflowReference);
         return BillPaymentResponse.from(paymentRepository.save(payment));
     }
 

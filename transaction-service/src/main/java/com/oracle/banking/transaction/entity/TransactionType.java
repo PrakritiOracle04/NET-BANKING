@@ -3,5 +3,6 @@ package com.oracle.banking.transaction.entity;
 public enum TransactionType {
     DEPOSIT,
     WITHDRAWAL,
-    TRANSFER
+    TRANSFER,
+    BILL_PAYMENT
 }

@@ -9,6 +9,8 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.WithdrawRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.WithdrawResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowResponse;
 import com.oracle.banking.workflow.service.BankingWorkflowService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -45,6 +47,17 @@ public class BankingWorkflowController {
     ApiResponse<TransferResponse> transfer(Authentication authentication,
             @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody TransferRequest request) {
         return ApiResponse.success("Transfer completed", service.transfer(authentication.getName(), isAdmin(authentication), idempotencyKey, request));
+    }
+
+    @PostMapping("/bill-payments")
+    @ResponseStatus(HttpStatus.CREATED)
+    ApiResponse<BillPaymentWorkflowResponse> payBill(
+            Authentication authentication,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody BillPaymentWorkflowRequest request) {
+        return ApiResponse.success(
+                "Bill payment completed",
+                service.payBill(authentication.getName(), idempotencyKey, request));
     }
 
     @PostMapping("/deposit")

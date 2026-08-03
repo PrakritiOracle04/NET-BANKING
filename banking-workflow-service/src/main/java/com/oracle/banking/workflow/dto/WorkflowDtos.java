@@ -48,6 +48,22 @@ public final class WorkflowDtos {
             boolean primaryAccount
     ) {}
 
+    public record BillPaymentWorkflowRequest(
+            @NotBlank @Size(max = 36) String sourceAccountId,
+            @NotBlank @Size(max = 36) String customerBillerId,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+            @Size(max = 160) String description
+    ) {}
+
+    public record BillPaymentWorkflowResponse(
+            String referenceNumber,
+            String billPaymentId,
+            String transactionId,
+            String sourceAccountId,
+            BigDecimal amount,
+            String status
+    ) {}
+
     public record TransferResponse(
             String referenceNumber,
             String sourceAccountId,
@@ -112,6 +128,48 @@ public final class WorkflowDtos {
             String destinationAccountNumber,
             String status,
             boolean verified
+    ) {}
+
+    public record InternalBillerValidationResponse(
+            String customerBillerId,
+            String customerUserId,
+            String billerId,
+            String billerName,
+            String consumerReference,
+            boolean active
+    ) {}
+
+    public record InternalCreateBillPaymentRequest(
+            String customerUserId,
+            String customerBillerId,
+            String sourceAccountId,
+            BigDecimal amount,
+            String workflowReference,
+            String description
+    ) {}
+
+    public record InternalCompleteBillPaymentRequest(String transactionId, String transactionReference) {}
+
+    public record InternalFailBillPaymentRequest(String reason) {}
+
+    public record InternalBillPaymentResponse(
+            String billPaymentId,
+            String customerUserId,
+            String customerBillerId,
+            String billerId,
+            String billerName,
+            String consumerReference,
+            String sourceAccountId,
+            BigDecimal amount,
+            String status,
+            String workflowReference,
+            String transactionId,
+            String transactionReference,
+            String description,
+            String failureReason,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant completedAt
     ) {}
 
     public record RecordTransactionRequest(
