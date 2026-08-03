@@ -18,6 +18,9 @@ security:
   jwt:
     secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
 
+services:
+  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui

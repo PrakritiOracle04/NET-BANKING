@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
@@ -30,6 +31,23 @@ public final class WorkflowDtos {
             @Size(max = 160) String description
     ) {}
 
+    public record OpenAccountRequest(
+            @NotBlank @Pattern(regexp = "^(SAVINGS|CURRENT|SALARY)$", message = "Invalid account type")
+            String accountType,
+            @NotBlank @Pattern(regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", message = "Invalid IFSC")
+            String branchIfsc
+    ) {}
+
+    public record OpenAccountResponse(
+            String referenceNumber,
+            String accountId,
+            String accountNumber,
+            String accountType,
+            String branchIfsc,
+            String status,
+            boolean primaryAccount
+    ) {}
+
     public record TransferResponse(
             String referenceNumber,
             String sourceAccountId,
@@ -46,20 +64,51 @@ public final class WorkflowDtos {
 
     public record InternalAccountValidationResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
+            String branchIfsc,
             String status,
             BigDecimal availableBalance,
             boolean active
     ) {}
 
+    public record CustomerOnboardingStatus(
+            String userId,
+            boolean profileComplete,
+            String kycStatus,
+            boolean eligibleForAccountOpening
+    ) {}
+
+    public record BranchResponse(String branchId, String branchName, String ifsc, String city, String state) {}
+
+    public record InternalOpenAccountRequest(
+            String customerUserId,
+            String accountType,
+            String branchIfsc,
+            String openingReference
+    ) {}
+
+    public record InternalOpenAccountResponse(
+            String accountId,
+            String customerUserId,
+            String accountNumber,
+            String accountType,
+            String branchIfsc,
+            String status,
+            BigDecimal availableBalance,
+            BigDecimal ledgerBalance,
+            boolean primaryAccount,
+            Instant createdAt,
+            Instant updatedAt
+    ) {}
+
     public record MoneyMovementRequest(BigDecimal amount, String referenceNumber, String description) {}
 
-    public record BeneficiaryVerificationRequest(String customerUsername, String destinationAccountNumber) {}
+    public record BeneficiaryVerificationRequest(String customerUserId, String destinationAccountNumber) {}
 
     public record BeneficiaryVerificationResponse(
             String beneficiaryId,
-            String customerUsername,
+            String customerUserId,
             String destinationAccountNumber,
             String status,
             boolean verified
@@ -68,7 +117,7 @@ public final class WorkflowDtos {
     public record RecordTransactionRequest(
             String accountId,
             String accountNumber,
-            String customerUsername,
+            String customerUserId,
             String transactionType,
             String referenceNumber,
             String referenceType,
@@ -83,7 +132,7 @@ public final class WorkflowDtos {
             String transactionId,
             String accountId,
             String accountNumber,
-            String customerUsername,
+            String customerUserId,
             String transactionType,
             String referenceNumber,
             String referenceType,

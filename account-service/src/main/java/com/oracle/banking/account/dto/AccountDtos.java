@@ -2,11 +2,13 @@ package com.oracle.banking.account.dto;
 
 import com.oracle.banking.account.entity.Account;
 import com.oracle.banking.account.entity.AccountStatus;
+import com.oracle.banking.account.entity.AccountType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,12 +17,11 @@ import java.util.List;
 public final class AccountDtos {
     private AccountDtos() {}
 
-    public record CreateAccountRequest(
-            @NotBlank @Size(max = 120) String customerUsername,
-            @NotBlank @Size(max = 30) String accountNumber,
-            @NotBlank @Size(max = 30) String accountType,
-            @NotNull @DecimalMin(value = "0.00") BigDecimal initialBalance,
-            boolean primaryAccount
+    public record InternalOpenAccountRequest(
+            @NotBlank @Size(max = 36) String customerUserId,
+            @NotNull AccountType accountType,
+            @NotBlank @Pattern(regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", message = "Invalid IFSC") String branchIfsc,
+            @NotBlank @Size(max = 80) String openingReference
     ) {}
 
     public record UpdateAccountStatusRequest(@NotNull AccountStatus status) {}
@@ -34,7 +35,8 @@ public final class AccountDtos {
     public record AccountSummaryResponse(
             String accountId,
             String accountNumber,
-            String accountType,
+            AccountType accountType,
+            String branchIfsc,
             AccountStatus status,
             BigDecimal availableBalance,
             boolean primaryAccount
@@ -44,6 +46,7 @@ public final class AccountDtos {
                     account.getAccountId(),
                     account.getAccountNumber(),
                     account.getAccountType(),
+                    account.getBranchIfsc(),
                     account.getStatus(),
                     account.getAvailableBalance(),
                     account.isPrimaryAccount()
@@ -53,9 +56,10 @@ public final class AccountDtos {
 
     public record AccountDetailsResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
-            String accountType,
+            AccountType accountType,
+            String branchIfsc,
             AccountStatus status,
             BigDecimal availableBalance,
             BigDecimal ledgerBalance,
@@ -66,9 +70,10 @@ public final class AccountDtos {
         public static AccountDetailsResponse from(Account account) {
             return new AccountDetailsResponse(
                     account.getAccountId(),
-                    account.getCustomerUsername(),
+                    account.getCustomerUserId(),
                     account.getAccountNumber(),
                     account.getAccountType(),
+                    account.getBranchIfsc(),
                     account.getStatus(),
                     account.getAvailableBalance(),
                     account.getLedgerBalance(),
@@ -99,8 +104,9 @@ public final class AccountDtos {
 
     public record InternalAccountValidationResponse(
             String accountId,
-            String customerUsername,
+            String customerUserId,
             String accountNumber,
+            String branchIfsc,
             AccountStatus status,
             BigDecimal availableBalance,
             boolean active
@@ -108,8 +114,9 @@ public final class AccountDtos {
         public static InternalAccountValidationResponse from(Account account) {
             return new InternalAccountValidationResponse(
                     account.getAccountId(),
-                    account.getCustomerUsername(),
+                    account.getCustomerUserId(),
                     account.getAccountNumber(),
+                    account.getBranchIfsc(),
                     account.getStatus(),
                     account.getAvailableBalance(),
                     account.getStatus() == AccountStatus.ACTIVE

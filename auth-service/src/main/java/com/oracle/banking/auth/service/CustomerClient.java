@@ -25,7 +25,7 @@ public class CustomerClient {
     public void createProfile(AppUser user, RegisterRequest request) {
         client.post().uri(customerServiceUrl + "/internal/customers")
                 .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalKey)
-                .body(new CustomerProfileCreate(user.getUserId(), request.fullName(), user.getEmail(), request.phone()))
+                .body(new CustomerProfileCreate(user.getUserId(), request.fullName()))
                 .retrieve().toBodilessEntity();
     }
 }

@@ -39,24 +39,24 @@ public class TransactionService {
         this.repository = repository;
     }
 
-    public Page<TransactionResponse> list(String username, boolean admin, int page, int size) {
-        Specification<BankTransaction> spec = admin ? null : byCustomer(username);
+    public Page<TransactionResponse> list(String userId, boolean admin, int page, int size) {
+        Specification<BankTransaction> spec = admin ? null : byCustomer(userId);
         return repository.findAll(spec, pageable(page, size, "transactionDate", "desc")).map(TransactionResponse::from);
     }
 
-    public TransactionResponse byId(String id, String username, boolean admin) {
+    public TransactionResponse byId(String id, String userId, boolean admin) {
         BankTransaction transaction = repository.findById(id).orElseThrow(() -> new NotFound("Transaction not found"));
-        requireOwnerOrAdmin(transaction, username, admin);
+        requireOwnerOrAdmin(transaction, userId, admin);
         return TransactionResponse.from(transaction);
     }
 
-    public Page<TransactionResponse> byAccount(String accountId, String username, boolean admin, int page, int size) {
-        Specification<BankTransaction> spec = byAccount(accountId).and(admin ? null : byCustomer(username));
+    public Page<TransactionResponse> byAccount(String accountId, String userId, boolean admin, int page, int size) {
+        Specification<BankTransaction> spec = byAccount(accountId).and(admin ? null : byCustomer(userId));
         return repository.findAll(spec, pageable(page, size, "transactionDate", "desc")).map(TransactionResponse::from);
     }
 
     public Page<TransactionResponse> search(
-            String username,
+            String userId,
             boolean admin,
             String accountId,
             String accountNumber,
@@ -72,16 +72,16 @@ public class TransactionService {
             String sortBy,
             String direction
     ) {
-        Specification<BankTransaction> spec = searchSpec(admin ? null : username, accountId, accountNumber, transactionType,
+        Specification<BankTransaction> spec = searchSpec(admin ? null : userId, accountId, accountNumber, transactionType,
                 status, minAmount, maxAmount, referenceNumber, fromDate, toDate);
         return repository.findAll(spec, pageable(page, size, sortBy, direction)).map(TransactionResponse::from);
     }
 
-    public StatementResponse statement(String username, boolean admin, String accountId, Instant fromDate, Instant toDate) {
+    public StatementResponse statement(String userId, boolean admin, String accountId, Instant fromDate, Instant toDate) {
         if (accountId == null || accountId.isBlank()) {
             throw new BadRequest("accountId is required");
         }
-        Specification<BankTransaction> spec = searchSpec(admin ? null : username, accountId, null, null, null, null, null, null, fromDate, toDate);
+        Specification<BankTransaction> spec = searchSpec(admin ? null : userId, accountId, null, null, null, null, null, null, fromDate, toDate);
         List<TransactionResponse> transactions = repository.findAll(spec, Sort.by(Sort.Direction.DESC, "transactionDate"))
                 .stream()
                 .map(TransactionResponse::from)
@@ -112,7 +112,7 @@ public class TransactionService {
         BankTransaction transaction = new BankTransaction();
         transaction.setAccountId(request.accountId());
         transaction.setAccountNumber(request.accountNumber());
-        transaction.setCustomerUsername(request.customerUsername());
+        transaction.setCustomerUserId(request.customerUserId());
         transaction.setTransactionType(request.transactionType());
         transaction.setReferenceNumber(request.referenceNumber());
         transaction.setReferenceType(request.referenceType());
@@ -138,7 +138,7 @@ public class TransactionService {
     }
 
     private Specification<BankTransaction> searchSpec(
-            String customerUsername,
+            String customerUserId,
             String accountId,
             String accountNumber,
             TransactionType transactionType,
@@ -151,7 +151,7 @@ public class TransactionService {
     ) {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (customerUsername != null) predicates.add(builder.equal(root.get("customerUsername"), customerUsername));
+            if (customerUserId != null) predicates.add(builder.equal(root.get("customerUserId"), customerUserId));
             if (accountId != null && !accountId.isBlank()) predicates.add(builder.equal(root.get("accountId"), accountId));
             if (accountNumber != null && !accountNumber.isBlank()) predicates.add(builder.equal(root.get("accountNumber"), accountNumber));
             if (transactionType != null) predicates.add(builder.equal(root.get("transactionType"), transactionType));
@@ -165,8 +165,8 @@ public class TransactionService {
         };
     }
 
-    private Specification<BankTransaction> byCustomer(String username) {
-        return (root, query, builder) -> builder.equal(root.get("customerUsername"), username);
+    private Specification<BankTransaction> byCustomer(String userId) {
+        return (root, query, builder) -> builder.equal(root.get("customerUserId"), userId);
     }
 
     private Specification<BankTransaction> byAccount(String accountId) {
@@ -179,8 +179,8 @@ public class TransactionService {
         return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(sortDirection, field));
     }
 
-    private void requireOwnerOrAdmin(BankTransaction transaction, String username, boolean admin) {
-        if (!admin && !transaction.getCustomerUsername().equals(username)) {
+    private void requireOwnerOrAdmin(BankTransaction transaction, String userId, boolean admin) {
+        if (!admin && !transaction.getCustomerUserId().equals(userId)) {
             throw new Forbidden("Transaction does not belong to authenticated customer");
         }
     }

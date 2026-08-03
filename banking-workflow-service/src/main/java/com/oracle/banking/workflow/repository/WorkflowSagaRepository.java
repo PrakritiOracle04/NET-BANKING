@@ -8,6 +8,6 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WorkflowSagaRepository extends JpaRepository<WorkflowSaga, String> {
-    Optional<WorkflowSaga> findByCustomerUsernameAndIdempotencyKeyAndWorkflowType(String customerUsername, String idempotencyKey, WorkflowType workflowType);
+    Optional<WorkflowSaga> findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(String customerUserId, String idempotencyKey, WorkflowType workflowType);
     List<WorkflowSaga> findByStatus(WorkflowStatus status);
 }

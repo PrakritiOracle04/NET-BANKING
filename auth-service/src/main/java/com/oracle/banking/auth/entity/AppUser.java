@@ -2,20 +2,29 @@ package com.oracle.banking.auth.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "APP_USER")
+@Table(
+        name = "APP_USER",
+        indexes = @Index(name = "IX_APP_USER_ROLE", columnList = "ROLE_ID"))
 public class AppUser {
     @Id
     @Column(name = "USER_ID", length = 36)
     private String userId;
 
     @ManyToOne(optional = false)
+    @JoinColumn(
+            name = "ROLE_ID",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "FK_APP_USER_ROLE"))
     private Role role;
 
     @Column(name = "USERNAME", nullable = false, unique = true, length = 60)

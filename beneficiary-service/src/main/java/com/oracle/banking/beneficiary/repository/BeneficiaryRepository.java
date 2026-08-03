@@ -6,10 +6,10 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BeneficiaryRepository extends JpaRepository<Beneficiary, String> {
-    List<Beneficiary> findByCustomerUsername(String customerUsername);
-    List<Beneficiary> findByCustomerUsernameAndFavouriteTrue(String customerUsername);
-    Optional<Beneficiary> findByBeneficiaryIdAndCustomerUsername(String beneficiaryId, String customerUsername);
-    Optional<Beneficiary> findByCustomerUsernameAndAccountNumber(String customerUsername, String accountNumber);
-    boolean existsByCustomerUsernameAndNicknameIgnoreCase(String customerUsername, String nickname);
-    boolean existsByCustomerUsernameAndNicknameIgnoreCaseAndBeneficiaryIdNot(String customerUsername, String nickname, String beneficiaryId);
+    List<Beneficiary> findByCustomerUserId(String customerUserId);
+    List<Beneficiary> findByCustomerUserIdAndFavouriteTrue(String customerUserId);
+    Optional<Beneficiary> findByBeneficiaryIdAndCustomerUserId(String beneficiaryId, String customerUserId);
+    Optional<Beneficiary> findByCustomerUserIdAndAccountNumber(String customerUserId, String accountNumber);
+    boolean existsByCustomerUserIdAndNicknameIgnoreCase(String customerUserId, String nickname);
+    boolean existsByCustomerUserIdAndNicknameIgnoreCaseAndBeneficiaryIdNot(String customerUserId, String nickname, String beneficiaryId);
 }

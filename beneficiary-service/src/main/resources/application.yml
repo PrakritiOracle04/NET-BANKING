@@ -20,6 +20,7 @@ security:
 
 services:
   internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+  account-service-url: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
 
 springdoc:
   swagger-ui:

@@ -102,10 +102,10 @@ public class AuthenticationService {
         return new UserResponse(user.getUserId(), user.getUsername(), user.getEmail(), user.getRole().getRoleName());
     }
 
-    public NotificationRecipient notificationRecipient(String username) {
-        AppUser user = users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return new NotificationRecipient(user.getUsername(), user.getEmail());
+    public NotificationRecipient notificationRecipient(String userId) {
+        AppUser user = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return new NotificationRecipient(user.getUserId(), user.getUsername(), user.getEmail());
     }
 
-    public record NotificationRecipient(String username, String email) {}
+    public record NotificationRecipient(String userId, String username, String email) {}
 }

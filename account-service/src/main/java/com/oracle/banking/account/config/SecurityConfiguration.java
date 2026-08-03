@@ -68,9 +68,8 @@ public class SecurityConfiguration {
                     Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(header.substring(7)).getPayload();
                     @SuppressWarnings("unchecked")
                     Collection<String> roles = claims.get("roles", List.class);
-                    String username = claims.get("username", String.class);
                     SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                            username != null ? username : claims.getSubject(),
+                            claims.getSubject(),
                             null,
                             roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role)).toList()));
                 } catch (Exception ex) {
