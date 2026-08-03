@@ -22,8 +22,13 @@ public class NotificationKafkaListener {
             "login-alert",
             "transaction-created",
             "bill-payment-created",
+            "bill-payment-success",
+            "bill-payment-failed",
+            "card-issued",
+            "card-activated",
             "card-blocked",
             "card-unblocked",
+            "card-limit-updated",
             "password-reset-request",
             "security-alert"
     })

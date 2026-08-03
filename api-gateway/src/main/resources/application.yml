@@ -52,6 +52,18 @@ spring:
               uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8089}
               predicates:
                 - Path=/api/notifications/**
+            - id: biller-service
+              uri: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+              predicates:
+                - Path=/api/billers/**
+            - id: bill-payment-service
+              uri: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+              predicates:
+                - Path=/api/bill-payments/**
+            - id: card-service
+              uri: ${CARD_SERVICE_URL:http://localhost:8091}
+              predicates:
+                - Path=/api/cards/**
 
 management:
   endpoints:
