@@ -12,7 +12,9 @@ public interface AccountRepository extends JpaRepository<Account, String> {
     List<Account> findByCustomerUserId(String customerUserId);
     Optional<Account> findByAccountNumber(String accountNumber);
     Optional<Account> findByCustomerUserIdAndPrimaryAccountTrue(String customerUserId);
+    Optional<Account> findByOpeningReference(String openingReference);
     boolean existsByAccountNumber(String accountNumber);
+    long countByCustomerUserId(String customerUserId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from Account account where account.accountId = :accountId")

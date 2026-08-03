@@ -30,8 +30,15 @@ public class Account {
     @Column(name = "ACCOUNT_NUMBER", nullable = false, unique = true, length = 30)
     private String accountNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "ACCOUNT_TYPE", nullable = false, length = 30)
-    private String accountType;
+    private AccountType accountType;
+
+    @Column(name = "BRANCH_IFSC", nullable = false, length = 11)
+    private String branchIfsc;
+
+    @Column(name = "OPENING_REFERENCE", nullable = false, unique = true, length = 80)
+    private String openingReference;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", nullable = false, length = 20)
@@ -77,8 +84,12 @@ public class Account {
     public void setCustomerUserId(String customerUserId) { this.customerUserId = customerUserId; }
     public String getAccountNumber() { return accountNumber; }
     public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
-    public String getAccountType() { return accountType; }
-    public void setAccountType(String accountType) { this.accountType = accountType; }
+    public AccountType getAccountType() { return accountType; }
+    public void setAccountType(AccountType accountType) { this.accountType = accountType; }
+    public String getBranchIfsc() { return branchIfsc; }
+    public void setBranchIfsc(String branchIfsc) { this.branchIfsc = branchIfsc; }
+    public String getOpeningReference() { return openingReference; }
+    public void setOpeningReference(String openingReference) { this.openingReference = openingReference; }
     public AccountStatus getStatus() { return status; }
     public void setStatus(AccountStatus status) { this.status = status; }
     public BigDecimal getAvailableBalance() { return availableBalance; }
