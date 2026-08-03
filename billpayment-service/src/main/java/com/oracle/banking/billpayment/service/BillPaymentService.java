@@ -97,11 +97,13 @@ public class BillPaymentService {
         log.info("Deactivated catalog biller {}", id);
     }
 
+    @Transactional(readOnly = true)
     public List<CustomerBillerResponse> customerBillers(String userId) {
         return customerBillerRepository.findByCustomerUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(CustomerBillerResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public CustomerBillerResponse customerBiller(String id, String userId) {
         return CustomerBillerResponse.from(ownedCustomerBiller(id, userId));
     }
@@ -150,6 +152,7 @@ public class BillPaymentService {
         log.info("Deactivated registered biller {}", id);
     }
 
+    @Transactional(readOnly = true)
     public InternalBillerValidationResponse validateBiller(String id, String userId) {
         CustomerBiller registration = customerBillerRepository.findByCustomerBillerIdAndCustomerUserId(id, userId)
                 .orElseThrow(() -> new NotFound("Registered biller not found"));
@@ -241,12 +244,14 @@ public class BillPaymentService {
         return BillPaymentResponse.from(paymentRepository.save(payment));
     }
 
+    @Transactional(readOnly = true)
     public BillPaymentResponse payment(String id, String userId, boolean admin) {
         BillPayment payment = admin ? payment(id) : paymentRepository.findByBillPaymentIdAndCustomerUserId(id, userId)
                 .orElseThrow(() -> new NotFound("Bill payment not found"));
         return BillPaymentResponse.from(payment);
     }
 
+    @Transactional(readOnly = true)
     public Page<BillPaymentResponse> history(
             String userId,
             BillPaymentStatus status,
