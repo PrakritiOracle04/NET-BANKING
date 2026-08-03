@@ -45,6 +45,14 @@ public class WorkflowSaga {
     private String destinationAccountId;
     @Column(name = "DESTINATION_ACCOUNT_NUMBER", length = 30)
     private String destinationAccountNumber;
+    @Column(name = "ACCOUNT_NUMBER", length = 30)
+    private String accountNumber;
+    @Column(name = "ACCOUNT_TYPE", length = 30)
+    private String accountType;
+    @Column(name = "BRANCH_IFSC", length = 11)
+    private String branchIfsc;
+    @Column(name = "IS_PRIMARY_ACCOUNT")
+    private Boolean primaryAccount;
     @Column(name = "AMOUNT", nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
     @Column(name = "DESCRIPTION", length = 160)
@@ -97,6 +105,10 @@ public class WorkflowSaga {
     public String getReferenceNumber() { return referenceNumber; }
     public String getSourceAccountId() { return sourceAccountId; }
     public String getDestinationAccountId() { return destinationAccountId; }
+    public String getAccountNumber() { return accountNumber; }
+    public String getAccountType() { return accountType; }
+    public String getBranchIfsc() { return branchIfsc; }
+    public boolean isPrimaryAccount() { return Boolean.TRUE.equals(primaryAccount); }
     public BigDecimal getAmount() { return amount; }
     public String getDescription() { return description; }
     public String getSourceMovementReference() { return sourceMovementReference; }
@@ -115,6 +127,18 @@ public class WorkflowSaga {
     public void debitTransactionPlanned(String reference) { debitTransactionReference = reference; }
     public void creditTransactionPlanned(String reference) { creditTransactionReference = reference; }
     public void transactionsRecorded() { status = WorkflowStatus.TRANSACTIONS_RECORDED; }
+    public void accountOpeningRequested(String accountType, String branchIfsc) {
+        this.accountType = accountType;
+        this.branchIfsc = branchIfsc;
+    }
+    public void prerequisitesValidated() { status = WorkflowStatus.PREREQUISITES_VALIDATED; }
+    public void accountCreated(String accountId, String accountNumber, boolean primaryAccount) {
+        sourceAccountId = accountId;
+        this.accountNumber = accountNumber;
+        this.primaryAccount = primaryAccount;
+        status = WorkflowStatus.ACCOUNT_CREATED;
+    }
+    public void retry() { status = WorkflowStatus.STARTED; failureReason = null; }
     public void complete() { status = WorkflowStatus.COMPLETED; failureReason = null; }
     public void fail(String reason) { status = WorkflowStatus.FAILED; failureReason = trim(reason); }
     public void compensating() { status = WorkflowStatus.COMPENSATING; }

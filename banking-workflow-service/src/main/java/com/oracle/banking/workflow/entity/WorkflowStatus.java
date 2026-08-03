@@ -2,6 +2,8 @@ package com.oracle.banking.workflow.entity;
 
 public enum WorkflowStatus {
     STARTED,
+    PREREQUISITES_VALIDATED,
+    ACCOUNT_CREATED,
     SOURCE_MOVED,
     DESTINATION_MOVED,
     TRANSACTIONS_RECORDED,

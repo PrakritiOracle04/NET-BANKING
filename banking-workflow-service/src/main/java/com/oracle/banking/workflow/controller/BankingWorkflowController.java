@@ -7,6 +7,8 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.TransferRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransferResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.WithdrawRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.WithdrawResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountResponse;
 import com.oracle.banking.workflow.service.BankingWorkflowService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 @RestController
 @RequestMapping("/api/banking")
@@ -24,6 +28,17 @@ public class BankingWorkflowController {
 
     public BankingWorkflowController(BankingWorkflowService service) {
         this.service = service;
+    }
+
+    @PostMapping("/accounts/open")
+    @ResponseStatus(HttpStatus.CREATED)
+    ApiResponse<OpenAccountResponse> openAccount(
+            Authentication authentication,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody OpenAccountRequest request) {
+        return ApiResponse.success(
+                "Account opened",
+                service.openAccount(authentication.getName(), idempotencyKey, request));
     }
 
     @PostMapping("/transfer")

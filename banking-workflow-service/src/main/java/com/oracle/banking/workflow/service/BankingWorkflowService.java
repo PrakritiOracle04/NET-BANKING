@@ -8,6 +8,12 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.DepositResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.DomainEvent;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalAccountValidationResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.MoneyMovementRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.CustomerOnboardingStatus;
+import com.oracle.banking.workflow.dto.WorkflowDtos.BranchResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.RecordTransactionRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransactionResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransferRequest;
@@ -43,6 +49,8 @@ public class BankingWorkflowService {
     private final RestClient accountClient;
     private final RestClient beneficiaryClient;
     private final RestClient transactionClient;
+    private final RestClient customerClient;
+    private final RestClient branchClient;
     private final WorkflowEventPublisher events;
     private final WorkflowSagaRepository sagas;
     private final String internalApiKey;
@@ -52,14 +60,60 @@ public class BankingWorkflowService {
             @Value("${services.account-service-url}") String accountServiceUrl,
             @Value("${services.beneficiary-service-url}") String beneficiaryServiceUrl,
             @Value("${services.transaction-service-url}") String transactionServiceUrl,
+            @Value("${services.customer-service-url}") String customerServiceUrl,
+            @Value("${services.branch-service-url}") String branchServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey) {
         this.accountClient = restClientBuilder.baseUrl(accountServiceUrl).build();
         this.beneficiaryClient = restClientBuilder.baseUrl(beneficiaryServiceUrl).build();
         this.transactionClient = restClientBuilder.baseUrl(transactionServiceUrl).build();
+        this.customerClient = restClientBuilder.baseUrl(customerServiceUrl).build();
+        this.branchClient = restClientBuilder.baseUrl(branchServiceUrl).build();
         this.events = events;
         this.sagas = sagas;
         this.recipients = recipients;
         this.internalApiKey = internalApiKey;
+    }
+
+    public OpenAccountResponse openAccount(String userId, String idempotencyKey, OpenAccountRequest request) {
+        WorkflowSaga saga = beginAccountOpening(userId, idempotencyKey, request);
+        if (saga.getStatus() == WorkflowStatus.COMPLETED) {
+            return openAccountResponse(saga);
+        }
+        try {
+            CustomerOnboardingStatus onboarding = customerOnboardingStatus(userId);
+            if (!onboarding.profileComplete()) {
+                throw new Conflict("Complete the customer profile before opening an account");
+            }
+            if (!"VERIFIED".equals(onboarding.kycStatus())) {
+                throw new Conflict("KYC must be VERIFIED before opening an account");
+            }
+            if (!onboarding.eligibleForAccountOpening()) {
+                throw new Conflict("Customer is not eligible for account opening");
+            }
+            BranchResponse branch = validateBranch(request.branchIfsc());
+            saga.prerequisitesValidated();
+            save(saga);
+            InternalOpenAccountResponse account = createAccount(
+                    userId,
+                    request,
+                    branch.ifsc(),
+                    saga.getReferenceNumber());
+            saga.accountCreated(account.accountId(), account.accountNumber(), account.primaryAccount());
+            saga.complete();
+            save(saga);
+            return new OpenAccountResponse(
+                    saga.getReferenceNumber(),
+                    account.accountId(),
+                    account.accountNumber(),
+                    account.accountType(),
+                    account.branchIfsc(),
+                    account.status(),
+                    account.primaryAccount());
+        } catch (RuntimeException exception) {
+            saga.fail(exception.getMessage());
+            save(saga);
+            throw exception;
+        }
     }
 
     public DepositResponse deposit(String userId, boolean admin, String idempotencyKey, DepositRequest request) {
@@ -189,6 +243,117 @@ public class BankingWorkflowService {
             throw new Conflict("Idempotency key was already used by workflow " + existing.getReferenceNumber());
         }
         return save(new WorkflowSaga(customerUserId, idempotencyKey, type, reference(prefix), sourceAccountId, destinationAccountNumber, amount, description));
+    }
+
+    private WorkflowSaga beginAccountOpening(
+            String userId,
+            String idempotencyKey,
+            OpenAccountRequest request) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BadRequest("Idempotency-Key is required");
+        }
+        WorkflowSaga existing = sagas.findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(
+                userId,
+                idempotencyKey,
+                WorkflowType.ACCOUNT_OPENING).orElse(null);
+        if (existing != null) {
+            if (!request.accountType().equals(existing.getAccountType())
+                    || !request.branchIfsc().equals(existing.getBranchIfsc())) {
+                throw new Conflict("Idempotency key was already used with a different account-opening request");
+            }
+            if (existing.getStatus() == WorkflowStatus.COMPLETED) {
+                return existing;
+            }
+            if (existing.getStatus() == WorkflowStatus.COMPENSATION_PENDING) {
+                throw new CompensationPending(
+                        "Workflow " + existing.getReferenceNumber() + " is awaiting compensation");
+            }
+            existing.retry();
+            return save(existing);
+        }
+        WorkflowSaga saga = new WorkflowSaga(
+                userId,
+                idempotencyKey,
+                WorkflowType.ACCOUNT_OPENING,
+                reference("AOP"),
+                null,
+                null,
+                BigDecimal.ZERO,
+                "Account opening");
+        saga.accountOpeningRequested(request.accountType(), request.branchIfsc());
+        return save(saga);
+    }
+
+    private CustomerOnboardingStatus customerOnboardingStatus(String userId) {
+        try {
+            CustomerOnboardingStatus response = customerClient.get()
+                    .uri("/internal/customers/{userId}/onboarding-status", userId)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .retrieve()
+                    .body(CustomerOnboardingStatus.class);
+            if (response == null) {
+                throw new DownstreamFailure("Customer eligibility check returned no data");
+            }
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) {
+                throw new BadRequest("Customer profile was not found");
+            }
+            throw new DownstreamFailure("Customer eligibility check failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Customer eligibility check failed");
+        }
+    }
+
+    private BranchResponse validateBranch(String ifsc) {
+        try {
+            BranchResponse response = branchClient.get()
+                    .uri("/internal/branches/ifsc/{ifsc}", ifsc)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .retrieve()
+                    .body(BranchResponse.class);
+            if (response == null) {
+                throw new BadRequest("Branch was not found");
+            }
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) {
+                throw new BadRequest("Branch IFSC was not found");
+            }
+            throw new DownstreamFailure("Branch validation failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Branch validation failed");
+        }
+    }
+
+    private InternalOpenAccountResponse createAccount(
+            String userId,
+            OpenAccountRequest request,
+            String validatedIfsc,
+            String openingReference) {
+        try {
+            InternalOpenAccountResponse response = accountClient.post()
+                    .uri("/internal/accounts/open")
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalOpenAccountRequest(
+                            userId,
+                            request.accountType(),
+                            validatedIfsc,
+                            openingReference))
+                    .retrieve()
+                    .body(InternalOpenAccountResponse.class);
+            if (response == null) {
+                throw new DownstreamFailure("Account service returned no data");
+            }
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) {
+                throw new BadRequest("Account could not be opened");
+            }
+            throw new DownstreamFailure("Account creation failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Account creation failed");
+        }
     }
 
     private RuntimeException fail(WorkflowSaga saga, RuntimeException cause) {
@@ -364,6 +529,17 @@ public class BankingWorkflowService {
     private TransferResponse transferResponse(WorkflowSaga saga) {
         return new TransferResponse(saga.getReferenceNumber(), saga.getSourceAccountId(), saga.getDestinationAccountId(), saga.getAmount(), "SUCCESS",
                 saga.getDebitTransactionId(), saga.getCreditTransactionId());
+    }
+
+    private OpenAccountResponse openAccountResponse(WorkflowSaga saga) {
+        return new OpenAccountResponse(
+                saga.getReferenceNumber(),
+                saga.getSourceAccountId(),
+                saga.getAccountNumber(),
+                saga.getAccountType(),
+                saga.getBranchIfsc(),
+                "ACTIVE",
+                saga.isPrimaryAccount());
     }
 
     private String reference(String prefix) {
