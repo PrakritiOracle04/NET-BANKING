@@ -71,6 +71,25 @@ public class SessionService {
         return new SessionValidationResponse(true, sessionId, userId, List.of(currentRole), session.getExpiresAt());
     }
 
+    @Transactional
+    public void invalidateCurrent(String userId, String sessionId) {
+        UserSession session = sessions.findById(sessionId).orElseThrow(this::invalidSession);
+        if (!userId.equals(session.getUserId())) throw invalidSession();
+        session.invalidate();
+    }
+
+    @Transactional
+    public int invalidateAll(String userId) {
+        List<UserSession> active = sessions.findByUserIdAndStatus(userId, SessionStatus.ACTIVE);
+        active.forEach(UserSession::invalidate);
+        return active.size();
+    }
+
+    @Transactional
+    public int expireDueSessions() {
+        return sessions.expireDueSessions(SessionStatus.ACTIVE, SessionStatus.EXPIRED, Instant.now());
+    }
+
     private String bearerToken(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
             throw invalidSession();

@@ -33,11 +33,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 Claims claims = jwtService.parse(header.substring(SecurityConstants.BEARER_PREFIX.length()));
+                String sessionId = claims.get("sid", String.class);
+                if (sessionId == null || sessionId.isBlank()) throw new IllegalArgumentException("Missing session ID");
                 @SuppressWarnings("unchecked")
                 Collection<String> roles = claims.get("roles", List.class);
                 var authorities = roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role)).toList();
                 SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities));
+                        new UsernamePasswordAuthenticationToken(
+                                new SessionPrincipal(claims.getSubject(), sessionId), null, authorities));
             } catch (Exception ignored) {
                 SecurityContextHolder.clearContext();
             }

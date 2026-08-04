@@ -8,8 +8,6 @@ import com.oracle.banking.auth.dto.RegisterResponse;
 import com.oracle.banking.auth.dto.UserResponse;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
-import com.oracle.banking.auth.entity.SessionStatus;
-import com.oracle.banking.auth.entity.UserSession;
 import com.oracle.banking.auth.event.AuthNotificationEventPublisher;
 import com.oracle.banking.auth.exception.BadCredentialsException;
 import com.oracle.banking.auth.exception.BadRequestException;
@@ -18,7 +16,6 @@ import com.oracle.banking.auth.exception.ResourceNotFoundException;
 import com.oracle.banking.auth.exception.TwoFactorException;
 import com.oracle.banking.auth.repository.AppUserRepository;
 import com.oracle.banking.auth.repository.RoleRepository;
-import com.oracle.banking.auth.repository.UserSessionRepository;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import com.oracle.banking.shared.validation.PasswordPolicy;
 import org.slf4j.Logger;
@@ -34,20 +31,18 @@ public class AuthenticationService {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
     private final AppUserRepository users;
     private final RoleRepository roles;
-    private final UserSessionRepository sessions;
     private final PasswordEncoder passwordEncoder;
     private final CustomerClient customerClient;
     private final TwoFactorClient twoFactorClient;
     private final SessionService sessionService;
     private final AuthNotificationEventPublisher notificationEvents;
 
-    public AuthenticationService(AppUserRepository users, RoleRepository roles, UserSessionRepository sessions,
+    public AuthenticationService(AppUserRepository users, RoleRepository roles,
                                  PasswordEncoder passwordEncoder, CustomerClient customerClient,
                                  TwoFactorClient twoFactorClient, SessionService sessionService,
                                  AuthNotificationEventPublisher notificationEvents) {
         this.users = users;
         this.roles = roles;
-        this.sessions = sessions;
         this.passwordEncoder = passwordEncoder;
         this.customerClient = customerClient;
         this.twoFactorClient = twoFactorClient;
@@ -92,9 +87,14 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public void logout(String userId) {
-        sessions.findByUserIdAndStatus(userId, SessionStatus.ACTIVE).forEach(UserSession::invalidate);
-        log.info("Logout completed for user {}", userId);
+    public void logout(String userId, String sessionId) {
+        sessionService.invalidateCurrent(userId, sessionId);
+        log.info("Current session logout completed for user {}", userId);
+    }
+
+    public void logoutAll(String userId) {
+        int invalidated = sessionService.invalidateAll(userId);
+        log.info("Logout-all completed for user {} across {} active sessions", userId, invalidated);
     }
 
     public UserResponse currentUser(String userId) {
