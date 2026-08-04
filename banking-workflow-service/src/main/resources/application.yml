@@ -37,6 +37,7 @@ services:
   customer-service-url: ${CUSTOMER_SERVICE_URL}
   branch-service-url: ${BRANCH_SERVICE_URL}
   billpayment-service-url: ${BILLPAYMENT_SERVICE_URL}
+  loan-service-url: ${LOAN_SERVICE_URL}
 
 banking:
   saga:
@@ -47,6 +48,8 @@ banking:
     account-credited-topic: account-credited
     bill-payment-success-topic: bill-payment-success
     bill-payment-failed-topic: bill-payment-failed
+    loan-payment-success-topic: loan-payment-success
+    loan-payment-failed-topic: loan-payment-failed
 
 springdoc:
   swagger-ui:

@@ -11,6 +11,8 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.OpenAccountResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanRepaymentWorkflowRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanRepaymentWorkflowResponse;
 import com.oracle.banking.workflow.service.BankingWorkflowService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/banking")
@@ -58,6 +61,17 @@ public class BankingWorkflowController {
         return ApiResponse.success(
                 "Bill payment completed",
                 service.payBill(authentication.getName(), idempotencyKey, request));
+    }
+
+    @PostMapping("/loans/{loanId}/repay")
+    ApiResponse<LoanRepaymentWorkflowResponse> repayLoan(
+            Authentication authentication,
+            @PathVariable String loanId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody LoanRepaymentWorkflowRequest request) {
+        return ApiResponse.success(
+                "Loan repayment completed",
+                service.repayLoan(authentication.getName(), idempotencyKey, loanId, request));
     }
 
     @PostMapping("/deposit")

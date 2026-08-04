@@ -3,6 +3,7 @@
 This guide is the starting point for developers integrating with, operating, or extending the platform. External clients must use the API Gateway at `http://localhost:8080`; `/internal/**` routes are service-to-service contracts and are never exposed by the gateway.
 
 See [DATA_OWNERSHIP.md](DATA_OWNERSHIP.md) for the authoritative ownership and duplication rules.
+Frontend teams can use [FRONTEND_API_CONTRACT.md](FRONTEND_API_CONTRACT.md) for the compact gateway route contract and tested request bodies.
 
 ## Local topology
 
@@ -20,6 +21,8 @@ See [DATA_OWNERSHIP.md](DATA_OWNERSHIP.md) for the authoritative ownership and d
 | Notification Service | 8089 | `/api/notifications/**` | Kafka consumers, email rendering, SMTP delivery |
 | Bill Payment Service | 8090 | `/api/billers/**`, `/api/bill-payments/**` | Biller catalog, registrations, payment history |
 | Card Service | 8091 | `/api/cards/**` | Encrypted cards, state transitions, daily limits |
+| Loan Service | 8092 | `/api/loans/**` | Loan registration, EMI schedule, balances, repayments |
+| Banking Scheduler Service | 8093 | `/api/schedules/**` | Scheduled bill-payment execution and schedule history |
 
 ```text
 Client -> API Gateway :8080
@@ -315,6 +318,50 @@ Workflow creates a durable `PENDING` payment, debits Account, records a `BILL_PA
 | `PUT /api/cards/{id}/limit` | owner | Update positive configured-range daily limit |
 
 Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with AES-256-GCM, stores an HMAC fingerprint for uniqueness, and returns only `************1234`. CVV and PIN are not stored or implemented.
+
+### Loans
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `POST /api/loans` | ADMIN | Register an approved/disbursed loan and generate EMI schedule (`201`) |
+| `POST /api/loans/calculate` | JWT | Calculate EMI and preview schedule |
+| `GET /api/loans` | owner/ADMIN | Own loans; ADMIN may filter `customerUserId` and `status` |
+| `GET /api/loans/{id}` | owner/ADMIN | Loan details |
+| `GET /api/loans/{id}/balance` | owner/ADMIN | Outstanding balance and EMI |
+| `GET /api/loans/{id}/schedule` | owner/ADMIN | EMI schedule |
+| `GET /api/loans/{id}/history` | owner/ADMIN | Repayment history |
+| `PUT /api/loans/{id}/status` | ADMIN | Move loan status |
+| `POST /api/banking/loans/{loanId}/repay` | owner | Repay through Workflow; requires `Idempotency-Key` |
+
+Loan statuses are `ACTIVE`, `OVERDUE`, `DEFAULTED`, and `CLOSED`. Loan repayment is coordinated by Workflow so account debit, transaction recording, loan allocation, and compensation stay consistent.
+
+### Schedules
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `POST /api/schedules` | owner | Create scheduled bill payment (`201`) |
+| `GET /api/schedules` | owner/ADMIN | Own schedules; ADMIN may filter `customerUserId` and `status` |
+| `GET /api/schedules/{id}` | owner/ADMIN | Schedule details |
+| `GET /api/schedules/{id}/executions` | owner/ADMIN | Execution attempts and workflow references |
+| `PUT /api/schedules/{id}` | owner | Update non-terminal schedule |
+| `POST /api/schedules/{id}/pause` | owner | Pause active schedule |
+| `POST /api/schedules/{id}/resume` | owner | Resume paused schedule |
+| `DELETE /api/schedules/{id}` | owner | Soft-cancel schedule (`204`) |
+
+Customer schedules currently execute `BILL_PAYMENT` operations. Supported schedule types are `ONE_TIME`, `DAILY`, `WEEKLY`, and `MONTHLY`. Execution instants are stored in UTC and recurrence is calculated from the submitted timezone.
+
+## Phase 4 Smoke-Test Notes
+
+The following gateway flows were manually verified on 2026-08-04:
+
+| Area | Result |
+| --- | --- |
+| Direct bill payment through `POST /api/banking/bill-payments` | Passed |
+| One-time scheduled bill payment through `/api/schedules` | Passed |
+| Card issue/list/activate/limit/block/unblock | Passed |
+| Notification history and manual test email record creation | Passed |
+
+During testing, `BANK_TRANSACTIONS` was recreated from the current Transaction entity so it uses `CUSTOMER_USER_ID` and accepts `BILL_PAYMENT` transaction types. If an older local schema recreates `CUSTOMER_USERNAME`, rebuild and recreate `transaction-service` from a fresh JAR/image before retesting.
 
 ## Internal dependency map
 
