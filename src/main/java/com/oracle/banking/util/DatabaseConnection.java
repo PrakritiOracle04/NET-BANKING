@@ -6,12 +6,9 @@ import java.sql.SQLException;
 
 public class DatabaseConnection {
 
-    private static final String URL =
-            "jdbc:oracle:thin:@localhost:1521/FREEPDB1";
-
-    private static final String USERNAME = "BANKING";
-
-    private static final String PASSWORD = "Banking123";
+    private static final String URL = requiredEnvironmentVariable("AUTH_DB_URL");
+    private static final String USERNAME = requiredEnvironmentVariable("AUTH_DB_USERNAME");
+    private static final String PASSWORD = requiredEnvironmentVariable("AUTH_DB_PASSWORD");
 
     public static Connection getConnection() {
 
@@ -35,6 +32,14 @@ public class DatabaseConnection {
             return null;
         }
 
+    }
+
+    private static String requiredEnvironmentVariable(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Required environment variable is missing: " + name);
+        }
+        return value;
     }
 
 }

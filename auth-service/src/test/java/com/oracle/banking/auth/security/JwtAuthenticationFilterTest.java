@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.oracle.banking.auth.TestSecrets;
 import com.oracle.banking.auth.dto.IssuedToken;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 class JwtAuthenticationFilterTest {
-    private static final String SECRET = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
+    private static final String SECRET = TestSecrets.randomBase64Key();
 
     @AfterEach
     void clearContext() {

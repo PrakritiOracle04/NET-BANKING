@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -67,8 +68,9 @@ class SessionAuthenticationFilterTest {
 
     @Test
     void forwardsValidSession() {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", "Bearer valid");
-        when(sessions.validate("Bearer valid")).thenReturn(Mono.just(SessionValidationClient.Result.VALID));
+        String authorization = testAuthorization();
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", authorization);
+        when(sessions.validate(authorization)).thenReturn(Mono.just(SessionValidationClient.Result.VALID));
 
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
@@ -77,8 +79,9 @@ class SessionAuthenticationFilterTest {
 
     @Test
     void rejectsRevokedSession() {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", "Bearer revoked");
-        when(sessions.validate("Bearer revoked")).thenReturn(Mono.just(SessionValidationClient.Result.INVALID));
+        String authorization = testAuthorization();
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", authorization);
+        when(sessions.validate(authorization)).thenReturn(Mono.just(SessionValidationClient.Result.INVALID));
 
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
@@ -88,8 +91,9 @@ class SessionAuthenticationFilterTest {
 
     @Test
     void failsClosedWhenAuthIsUnavailable() {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", "Bearer valid");
-        when(sessions.validate("Bearer valid")).thenReturn(Mono.just(SessionValidationClient.Result.UNAVAILABLE));
+        String authorization = testAuthorization();
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/accounts", authorization);
+        when(sessions.validate(authorization)).thenReturn(Mono.just(SessionValidationClient.Result.UNAVAILABLE));
 
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
@@ -101,6 +105,10 @@ class SessionAuthenticationFilterTest {
         MockServerHttpRequest.BaseBuilder<?> request = MockServerHttpRequest.method(method, path);
         if (authorization != null) request.header(HttpHeaders.AUTHORIZATION, authorization);
         return MockServerWebExchange.from(request.build());
+    }
+
+    private String testAuthorization() {
+        return "Bearer " + UUID.randomUUID();
     }
 
     private void assertError(MockServerWebExchange exchange, HttpStatus status, String message) {

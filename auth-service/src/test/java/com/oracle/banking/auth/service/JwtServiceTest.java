@@ -2,6 +2,7 @@ package com.oracle.banking.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.oracle.banking.auth.TestSecrets;
 import com.oracle.banking.auth.dto.IssuedToken;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
@@ -10,7 +11,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import org.junit.jupiter.api.Test;
 
 class JwtServiceTest {
-    private static final String SECRET = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
+    private static final String SECRET = TestSecrets.randomBase64Key();
 
     @Test
     void issuedTokenContainsSidAndIdentityClaims() {

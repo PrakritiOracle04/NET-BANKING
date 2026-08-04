@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.oracle.banking.auth.TestSecrets;
 import com.oracle.banking.auth.dto.IssuedToken;
 import com.oracle.banking.auth.dto.SessionValidationResponse;
 import com.oracle.banking.auth.entity.AppUser;
@@ -25,7 +26,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 class SessionServiceTest {
-    private static final String SECRET = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
+    private static final String SECRET = TestSecrets.randomBase64Key();
 
     @Mock
     private UserSessionRepository sessions;
