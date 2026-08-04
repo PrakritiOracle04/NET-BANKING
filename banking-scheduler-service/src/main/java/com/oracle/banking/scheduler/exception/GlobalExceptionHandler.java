@@ -7,9 +7,12 @@ import com.oracle.banking.scheduler.exception.SchedulerExceptions.DownstreamFail
 import com.oracle.banking.scheduler.exception.SchedulerExceptions.Forbidden;
 import com.oracle.banking.scheduler.exception.SchedulerExceptions.NotFound;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.DateTimeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -21,8 +24,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFound.class)
     ResponseEntity<ErrorResponse> notFound(RuntimeException ex, HttpServletRequest request) { return error(HttpStatus.NOT_FOUND, ex.getMessage(), request); }
 
-    @ExceptionHandler(Forbidden.class)
-    ResponseEntity<ErrorResponse> forbidden(RuntimeException ex, HttpServletRequest request) { return error(HttpStatus.FORBIDDEN, "Access denied", request); }
+    @ExceptionHandler({Forbidden.class, MissingRequestHeaderException.class})
+    ResponseEntity<ErrorResponse> forbidden(Exception ex, HttpServletRequest request) { return error(HttpStatus.FORBIDDEN, "Access denied", request); }
 
     @ExceptionHandler(Conflict.class)
     ResponseEntity<ErrorResponse> conflict(RuntimeException ex, HttpServletRequest request) { return error(HttpStatus.CONFLICT, ex.getMessage(), request); }
@@ -30,8 +33,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DownstreamFailure.class)
     ResponseEntity<ErrorResponse> downstream(RuntimeException ex, HttpServletRequest request) { return error(HttpStatus.BAD_GATEWAY, ex.getMessage(), request); }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class, DateTimeException.class})
+    ResponseEntity<ErrorResponse> validation(Exception ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "Validation failed", request);
     }
 

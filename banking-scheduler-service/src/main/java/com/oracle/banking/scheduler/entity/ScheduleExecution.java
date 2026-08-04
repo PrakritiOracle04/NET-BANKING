@@ -18,10 +18,9 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "SCHEDULE_EXECUTIONS",
-        uniqueConstraints = {
-            @UniqueConstraint(name = "UK_EXEC_SCHEDULE_TIME", columnNames = {"SCHEDULE_ID", "SCHEDULED_FOR"}),
-            @UniqueConstraint(name = "UK_EXEC_WORKFLOW_KEY", columnNames = {"WORKFLOW_IDEMPOTENCY_KEY"})
-        },
+        uniqueConstraints = @UniqueConstraint(
+                name = "UK_EXEC_WORKFLOW_KEY",
+                columnNames = "WORKFLOW_IDEMPOTENCY_KEY"),
         indexes = {
             @Index(name = "IX_EXEC_STATUS_RETRY", columnList = "STATUS, NEXT_RETRY_AT"),
             @Index(name = "IX_EXEC_SCHEDULE", columnList = "SCHEDULE_ID, SCHEDULED_FOR")
