@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import org.hibernate.annotations.Check;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Check(constraints = "PRINCIPAL_AMOUNT > 0 AND ANNUAL_INTEREST_RATE >= 0 AND TENURE_MONTHS > 0 AND EMI_AMOUNT >= 0 AND OUTSTANDING_BALANCE >= 0")
@@ -36,6 +37,11 @@ public class Loan {
 
     @Column(name = "LOAN_NUMBER", nullable = false, unique = true, length = 30)
     private String loanNumber;
+
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'PERSONAL'")
+    @Column(name = "LOAN_TYPE", nullable = false, length = 30)
+    private LoanType loanType;
 
     @Column(name = "PRINCIPAL_AMOUNT", nullable = false, precision = 19, scale = 2)
     private BigDecimal principalAmount;
@@ -74,12 +80,13 @@ public class Loan {
     protected Loan() {
     }
 
-    public Loan(String customerUserId, String linkedAccountId, String loanNumber, BigDecimal principalAmount,
+    public Loan(String customerUserId, String linkedAccountId, String loanNumber, LoanType loanType, BigDecimal principalAmount,
             BigDecimal annualInterestRate, int tenureMonths, BigDecimal emiAmount, LocalDate startDate) {
         this.loanId = UUID.randomUUID().toString();
         this.customerUserId = customerUserId;
         this.linkedAccountId = linkedAccountId;
         this.loanNumber = loanNumber;
+        this.loanType = loanType;
         this.principalAmount = principalAmount;
         this.annualInterestRate = annualInterestRate;
         this.tenureMonths = tenureMonths;
@@ -93,6 +100,7 @@ public class Loan {
     @PrePersist
     void beforeCreate() {
         if (loanId == null) loanId = UUID.randomUUID().toString();
+        if (loanType == null) loanType = LoanType.PERSONAL;
         if (status == null) status = LoanStatus.ACTIVE;
         createdAt = Instant.now();
         updatedAt = createdAt;
@@ -100,6 +108,7 @@ public class Loan {
 
     @PreUpdate
     void beforeUpdate() {
+        if (loanType == null) loanType = LoanType.PERSONAL;
         updatedAt = Instant.now();
     }
 
@@ -134,6 +143,7 @@ public class Loan {
     public String getCustomerUserId() { return customerUserId; }
     public String getLinkedAccountId() { return linkedAccountId; }
     public String getLoanNumber() { return loanNumber; }
+    public LoanType getLoanType() { return loanType; }
     public BigDecimal getPrincipalAmount() { return principalAmount; }
     public BigDecimal getAnnualInterestRate() { return annualInterestRate; }
     public Integer getTenureMonths() { return tenureMonths; }
