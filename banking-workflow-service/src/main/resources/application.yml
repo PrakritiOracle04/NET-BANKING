@@ -37,6 +37,7 @@ services:
   customer-service-url: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
   branch-service-url: ${BRANCH_SERVICE_URL:http://localhost:8084}
   billpayment-service-url: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+  loan-service-url: ${LOAN_SERVICE_URL:http://localhost:8092}
 
 banking:
   saga:
@@ -47,6 +48,8 @@ banking:
     account-credited-topic: ${ACCOUNT_CREDITED_TOPIC:account-credited}
     bill-payment-success-topic: ${BILL_PAYMENT_SUCCESS_TOPIC:bill-payment-success}
     bill-payment-failed-topic: ${BILL_PAYMENT_FAILED_TOPIC:bill-payment-failed}
+    loan-payment-success-topic: ${LOAN_PAYMENT_SUCCESS_TOPIC:loan-payment-success}
+    loan-payment-failed-topic: ${LOAN_PAYMENT_FAILED_TOPIC:loan-payment-failed}
 
 springdoc:
   swagger-ui:

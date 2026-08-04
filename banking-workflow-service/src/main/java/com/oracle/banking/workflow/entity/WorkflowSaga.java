@@ -55,6 +55,10 @@ public class WorkflowSaga {
     private String customerBillerId;
     @Column(name = "BILL_PAYMENT_ID", length = 36)
     private String billPaymentId;
+    @Column(name = "LOAN_ID", length = 36)
+    private String loanId;
+    @Column(name = "LOAN_REPAYMENT_ID", length = 36)
+    private String loanRepaymentId;
     @Column(name = "IS_PRIMARY_ACCOUNT")
     private Boolean primaryAccount;
     @Column(name = "AMOUNT", nullable = false, precision = 19, scale = 2)
@@ -115,6 +119,8 @@ public class WorkflowSaga {
     public String getBranchIfsc() { return branchIfsc; }
     public String getCustomerBillerId() { return customerBillerId; }
     public String getBillPaymentId() { return billPaymentId; }
+    public String getLoanId() { return loanId; }
+    public String getLoanRepaymentId() { return loanRepaymentId; }
     public boolean isPrimaryAccount() { return Boolean.TRUE.equals(primaryAccount); }
     public BigDecimal getAmount() { return amount; }
     public String getDescription() { return description; }
@@ -128,7 +134,10 @@ public class WorkflowSaga {
         return sourceMovementReference != null
                 || destinationMovementReference != null
                 || billPaymentId != null
+                || loanRepaymentId != null
                 || (workflowType == WorkflowType.BILL_PAYMENT
+                        && status == WorkflowStatus.PREREQUISITES_VALIDATED)
+                || (workflowType == WorkflowType.LOAN_REPAYMENT
                         && status == WorkflowStatus.PREREQUISITES_VALIDATED);
     }
     public void sourceMovementPlanned(String reference) { sourceMovementReference = reference; }
@@ -149,6 +158,11 @@ public class WorkflowSaga {
     public void billPaymentCreated(String billPaymentId) {
         this.billPaymentId = billPaymentId;
         status = WorkflowStatus.BILL_PAYMENT_CREATED;
+    }
+    public void loanRepaymentRequested(String loanId) { this.loanId = loanId; }
+    public void loanRepaymentCreated(String loanRepaymentId) {
+        this.loanRepaymentId = loanRepaymentId;
+        status = WorkflowStatus.LOAN_REPAYMENT_CREATED;
     }
     public void accountCreated(String accountId, String accountNumber, boolean primaryAccount) {
         sourceAccountId = accountId;
