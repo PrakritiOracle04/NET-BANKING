@@ -24,7 +24,7 @@ public class SessionValidationClient {
             WebClient.Builder builder,
             @Value("${services.auth-service-url}") String authServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey,
-            @Value("${services.session-validation-timeout-ms:3000}") long timeoutMs) {
+            @Value("${services.session-validation-timeout-ms}") long timeoutMs) {
         this.authClient = builder.baseUrl(authServiceUrl).build();
         this.internalApiKey = internalApiKey;
         this.timeout = Duration.ofMillis(timeoutMs);
