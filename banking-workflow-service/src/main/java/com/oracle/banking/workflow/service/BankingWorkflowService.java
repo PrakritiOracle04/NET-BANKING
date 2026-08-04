@@ -17,11 +17,21 @@ import com.oracle.banking.workflow.dto.WorkflowDtos.BillPaymentWorkflowResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalBillerValidationResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalBillPaymentResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCompleteBillPaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCompleteLoanRepaymentRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCreateBillPaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalCreateLoanRepaymentRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalFailBillPaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalFailLoanRepaymentRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalLoanRepaymentResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.InternalLoanValidationResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.InternalOpenAccountResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanRepaymentWorkflowRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanRepaymentWorkflowResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanMaintenanceResponse;
+import com.oracle.banking.workflow.dto.WorkflowDtos.LoanMaintenanceWorkflowRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.RecordTransactionRequest;
+import com.oracle.banking.workflow.dto.WorkflowDtos.ScheduledBillPaymentWorkflowRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransactionResponse;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransferRequest;
 import com.oracle.banking.workflow.dto.WorkflowDtos.TransferResponse;
@@ -60,6 +70,7 @@ public class BankingWorkflowService {
     private final RestClient customerClient;
     private final RestClient branchClient;
     private final RestClient billPaymentClient;
+    private final RestClient loanClient;
     private final WorkflowEventPublisher events;
     private final WorkflowSagaRepository sagas;
     private final String internalApiKey;
@@ -72,6 +83,7 @@ public class BankingWorkflowService {
             @Value("${services.customer-service-url}") String customerServiceUrl,
             @Value("${services.branch-service-url}") String branchServiceUrl,
             @Value("${services.billpayment-service-url}") String billPaymentServiceUrl,
+            @Value("${services.loan-service-url}") String loanServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey) {
         this.accountClient = restClientBuilder.baseUrl(accountServiceUrl).build();
         this.beneficiaryClient = restClientBuilder.baseUrl(beneficiaryServiceUrl).build();
@@ -79,6 +91,7 @@ public class BankingWorkflowService {
         this.customerClient = restClientBuilder.baseUrl(customerServiceUrl).build();
         this.branchClient = restClientBuilder.baseUrl(branchServiceUrl).build();
         this.billPaymentClient = restClientBuilder.baseUrl(billPaymentServiceUrl).build();
+        this.loanClient = restClientBuilder.baseUrl(loanServiceUrl).build();
         this.events = events;
         this.sagas = sagas;
         this.recipients = recipients;
@@ -146,6 +159,103 @@ public class BankingWorkflowService {
                         "bill-payment-failed",
                         saga,
                         "Your bill payment " + saga.getReferenceNumber() + " failed and no funds were retained."));
+            }
+            throw outcome;
+        }
+    }
+
+    public BillPaymentWorkflowResponse payScheduledBill(ScheduledBillPaymentWorkflowRequest request) {
+        return payBill(
+                request.customerUserId(),
+                request.idempotencyKey(),
+                new BillPaymentWorkflowRequest(
+                        request.sourceAccountId(),
+                        request.customerBillerId(),
+                        request.amount(),
+                        request.description()));
+    }
+
+    public LoanMaintenanceResponse runLoanMaintenance(LoanMaintenanceWorkflowRequest request) {
+        return switch (request.operationType()) {
+            case "EMI_REMINDER_SCAN" -> runLoanMaintenanceEndpoint(
+                    request,
+                    "/internal/loans/maintenance/emi-reminders",
+                    "EMI_REMINDER_SCAN");
+            case "LOAN_OVERDUE_SCAN" -> runLoanMaintenanceEndpoint(
+                    request,
+                    "/internal/loans/maintenance/overdue",
+                    "LOAN_OVERDUE_SCAN");
+            default -> throw new BadRequest("Unsupported loan maintenance operation");
+        };
+    }
+
+    public LoanRepaymentWorkflowResponse repayLoan(
+            String userId,
+            String idempotencyKey,
+            String loanId,
+            LoanRepaymentWorkflowRequest request) {
+        WorkflowSaga saga = beginLoanRepayment(userId, idempotencyKey, loanId, request);
+        if (saga.getStatus() == WorkflowStatus.COMPLETED) return loanRepaymentResponse(saga);
+        try {
+            InternalLoanValidationResponse loan = validateLoan(loanId, userId, request.amount());
+            InternalAccountValidationResponse account = validateAccount(request.sourceAccountId());
+            requireOwnerOrAdmin(account, userId, false);
+            requireActive(account);
+            requireSufficientBalance(account, request.amount());
+            if (!Objects.equals(loan.customerUserId(), account.customerUserId())) {
+                throw new Forbidden("Loan does not belong to source account customer");
+            }
+            if (!"ACTIVE".equals(loan.status())) {
+                throw new BadRequest("Only active loans can be repaid");
+            }
+
+            saga.prerequisitesValidated();
+            save(saga);
+
+            InternalLoanRepaymentResponse pending = createPendingLoanRepayment(saga, request);
+            saga.loanRepaymentCreated(pending.loanRepaymentId());
+            save(saga);
+
+            String movementReference = saga.getReferenceNumber() + ":LOAN:DEBIT";
+            saga.sourceMovementPlanned(movementReference);
+            save(saga);
+            debit(account.accountId(), request.amount(), movementReference, request.description());
+            saga.sourceMoved(movementReference);
+            save(saga);
+
+            String transactionReference = saga.getReferenceNumber();
+            saga.debitTransactionPlanned(transactionReference);
+            save(saga);
+            TransactionResponse transaction = record(
+                    account,
+                    "LOAN_REPAYMENT",
+                    transactionReference,
+                    "LOAN_REPAYMENT",
+                    request.amount(),
+                    "DEBIT",
+                    request.description());
+            saga.debitTransactionRecorded(transactionReference, transaction.transactionId());
+            saga.transactionsRecorded();
+            save(saga);
+
+            completeLoanRepayment(saga.getLoanRepaymentId(), transaction.transactionId(), transactionReference);
+            saga.complete();
+            save(saga);
+
+            events.loanPaymentSucceeded(loanPaymentEvent(
+                    "loan-payment-success",
+                    saga,
+                    "Your loan payment " + saga.getReferenceNumber() + " completed successfully."));
+            events.accountDebited(event("account-debited", saga, account.accountId()));
+            events.transactionCreated(event("transaction-created", saga, account.accountId()));
+            return loanRepaymentResponse(saga);
+        } catch (RuntimeException exception) {
+            RuntimeException outcome = fail(saga, exception);
+            if (saga.getStatus() == WorkflowStatus.COMPENSATED || saga.getStatus() == WorkflowStatus.FAILED) {
+                events.loanPaymentFailed(loanPaymentEvent(
+                        "loan-payment-failed",
+                        saga,
+                        "Your loan payment " + saga.getReferenceNumber() + " failed and no funds were retained."));
             }
             throw outcome;
         }
@@ -309,6 +419,11 @@ public class BankingWorkflowService {
                             "bill-payment-failed",
                             saga,
                             "Your bill payment " + saga.getReferenceNumber() + " failed and was reversed."));
+                } else if (saga.getWorkflowType() == WorkflowType.LOAN_REPAYMENT) {
+                    events.loanPaymentFailed(loanPaymentEvent(
+                            "loan-payment-failed",
+                            saga,
+                            "Your loan payment " + saga.getReferenceNumber() + " failed and was reversed."));
                 }
             }
         });
@@ -375,6 +490,45 @@ public class BankingWorkflowService {
                 request.amount(),
                 request.description());
         saga.billPaymentRequested(request.customerBillerId());
+        return save(saga);
+    }
+
+    private WorkflowSaga beginLoanRepayment(
+            String userId,
+            String idempotencyKey,
+            String loanId,
+            LoanRepaymentWorkflowRequest request) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BadRequest("Idempotency-Key is required");
+        }
+        if (loanId == null || loanId.isBlank()) {
+            throw new BadRequest("Loan id is required");
+        }
+        WorkflowSaga existing = sagas.findByCustomerUserIdAndIdempotencyKeyAndWorkflowType(
+                userId, idempotencyKey, WorkflowType.LOAN_REPAYMENT).orElse(null);
+        if (existing != null) {
+            boolean sameRequest = Objects.equals(existing.getSourceAccountId(), request.sourceAccountId())
+                    && Objects.equals(existing.getLoanId(), loanId)
+                    && existing.getAmount().compareTo(request.amount()) == 0
+                    && Objects.equals(existing.getDescription(), request.description());
+            if (!sameRequest) throw new Conflict("Idempotency key was already used with a different loan-repayment request");
+            if (existing.getStatus() == WorkflowStatus.COMPLETED) return existing;
+            if (existing.getStatus() == WorkflowStatus.COMPENSATION_PENDING) {
+                throw new CompensationPending(
+                        "Workflow " + existing.getReferenceNumber() + " is awaiting compensation");
+            }
+            throw new Conflict("Idempotency key was already used by workflow " + existing.getReferenceNumber());
+        }
+        WorkflowSaga saga = new WorkflowSaga(
+                userId,
+                idempotencyKey,
+                WorkflowType.LOAN_REPAYMENT,
+                reference("LNP"),
+                request.sourceAccountId(),
+                null,
+                request.amount(),
+                request.description());
+        saga.loanRepaymentRequested(loanId);
         return save(saga);
     }
 
@@ -565,6 +719,109 @@ public class BankingWorkflowService {
         }
     }
 
+    private InternalLoanValidationResponse validateLoan(String loanId, String userId, BigDecimal amount) {
+        try {
+            InternalLoanValidationResponse response = loanClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/internal/loans/{id}/validate")
+                            .queryParam("customerUserId", userId)
+                            .queryParam("amount", amount)
+                            .build(loanId))
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .retrieve()
+                    .body(InternalLoanValidationResponse.class);
+            if (response == null) throw new DownstreamFailure("Loan validation returned no data");
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) throw new BadRequest("Loan could not be validated");
+            throw new DownstreamFailure("Loan Service is unavailable");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Loan Service is unavailable");
+        }
+    }
+
+    private InternalLoanRepaymentResponse createPendingLoanRepayment(
+            WorkflowSaga saga,
+            LoanRepaymentWorkflowRequest request) {
+        try {
+            InternalLoanRepaymentResponse response = loanClient.post()
+                    .uri("/internal/loan-repayments")
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalCreateLoanRepaymentRequest(
+                            saga.getLoanId(),
+                            saga.getCustomerUserId(),
+                            request.sourceAccountId(),
+                            request.amount(),
+                            saga.getReferenceNumber()))
+                    .retrieve()
+                    .body(InternalLoanRepaymentResponse.class);
+            if (response == null) throw new DownstreamFailure("Loan Service returned no data");
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) throw new BadRequest("Loan repayment could not be created");
+            throw new DownstreamFailure("Loan Service is unavailable");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Loan Service is unavailable");
+        }
+    }
+
+    private void completeLoanRepayment(String id, String transactionId, String transactionReference) {
+        try {
+            loanClient.put()
+                    .uri("/internal/loan-repayments/{id}/complete", id)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalCompleteLoanRepaymentRequest(transactionId, transactionReference))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Loan repayment completion failed");
+        }
+    }
+
+    private void reverseLoanRepayment(String id, String workflowReference, String reason) {
+        try {
+            loanClient.put()
+                    .uri(
+                            id == null
+                                    ? "/internal/loan-repayments/workflow/{reference}/reverse"
+                                    : "/internal/loan-repayments/{reference}/reverse",
+                            id == null ? workflowReference : id)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new InternalFailLoanRepaymentRequest(
+                            reason == null || reason.isBlank() ? "Workflow compensated" : reason))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 404 && id == null) return;
+            throw new DownstreamFailure("Loan repayment compensation failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Loan repayment compensation failed");
+        }
+    }
+
+    private LoanMaintenanceResponse runLoanMaintenanceEndpoint(
+            LoanMaintenanceWorkflowRequest request,
+            String path,
+            String operationType) {
+        try {
+            LoanMaintenanceResponse response = loanClient.post()
+                    .uri(path)
+                    .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
+                    .body(new com.oracle.banking.workflow.dto.WorkflowDtos.InternalLoanMaintenanceRequest(
+                            request.businessDate(),
+                            request.idempotencyKey()))
+                    .retrieve()
+                    .body(LoanMaintenanceResponse.class);
+            if (response == null) throw new DownstreamFailure("Loan maintenance returned no data");
+            return response;
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().is4xxClientError()) throw new BadRequest("Loan maintenance request was rejected");
+            throw new DownstreamFailure("Loan maintenance failed");
+        } catch (RestClientException exception) {
+            throw new DownstreamFailure("Loan maintenance failed");
+        }
+    }
+
     private RuntimeException fail(WorkflowSaga saga, RuntimeException cause) {
         if (!saga.hasMutation()) {
             saga.fail(cause.getMessage());
@@ -581,6 +838,14 @@ public class BankingWorkflowService {
         saga.compensating();
         save(saga);
         boolean successful = true;
+        if (saga.getWorkflowType() == WorkflowType.LOAN_REPAYMENT) {
+            successful &= attempt(
+                    "reverse loan repayment",
+                    () -> reverseLoanRepayment(
+                            saga.getLoanRepaymentId(),
+                            saga.getReferenceNumber(),
+                            "Workflow was compensated"));
+        }
         successful &= attempt("reverse credit transaction", () -> reverseTransaction(saga.getCreditTransactionReference()));
         successful &= attempt("reverse debit transaction", () -> reverseTransaction(saga.getDebitTransactionReference()));
         successful &= attempt("reverse destination movement", () -> reverseMovement(saga.getDestinationAccountId(), saga.getDestinationMovementReference()));
@@ -761,6 +1026,17 @@ public class BankingWorkflowService {
                 "SUCCESS");
     }
 
+    private LoanRepaymentWorkflowResponse loanRepaymentResponse(WorkflowSaga saga) {
+        return new LoanRepaymentWorkflowResponse(
+                saga.getReferenceNumber(),
+                saga.getLoanId(),
+                saga.getLoanRepaymentId(),
+                saga.getDebitTransactionId(),
+                saga.getSourceAccountId(),
+                saga.getAmount(),
+                "SUCCESS");
+    }
+
     private DomainEvent billPaymentEvent(String eventType, WorkflowSaga saga, String message) {
         try {
             return new DomainEvent(
@@ -775,6 +1051,24 @@ public class BankingWorkflowService {
                     Map.of("message", message));
         } catch (RuntimeException exception) {
             log.warn("Bill payment notification was skipped for workflow {}", saga.getReferenceNumber());
+            return null;
+        }
+    }
+
+    private DomainEvent loanPaymentEvent(String eventType, WorkflowSaga saga, String message) {
+        try {
+            return new DomainEvent(
+                    eventType,
+                    saga.getReferenceNumber(),
+                    saga.getSourceAccountId(),
+                    saga.getAmount(),
+                    saga.getStatus().name(),
+                    Instant.now(),
+                    recipients.email(saga.getCustomerUserId()),
+                    "GENERIC_NOTIFICATION",
+                    Map.of("message", message));
+        } catch (RuntimeException exception) {
+            log.warn("Loan payment notification was skipped for workflow {}", saga.getReferenceNumber());
             return null;
         }
     }

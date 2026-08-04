@@ -31,6 +31,8 @@
         <module>notification-service</module>
         <module>billpayment-service</module>
         <module>card-service</module>
+        <module>loan-service</module>
+        <module>banking-scheduler-service</module>
     </modules>
 
     <properties>

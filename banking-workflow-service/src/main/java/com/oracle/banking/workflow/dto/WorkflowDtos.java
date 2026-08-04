@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 
 public final class WorkflowDtos {
@@ -63,6 +64,42 @@ public final class WorkflowDtos {
             BigDecimal amount,
             String status
     ) {}
+
+    public record LoanRepaymentWorkflowRequest(
+            @NotBlank @Size(max = 36) String sourceAccountId,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+            @Size(max = 160) String description
+    ) {}
+
+    public record LoanRepaymentWorkflowResponse(
+            String referenceNumber,
+            String loanId,
+            String loanRepaymentId,
+            String transactionId,
+            String sourceAccountId,
+            BigDecimal amount,
+            String status
+    ) {}
+
+    public record ScheduledBillPaymentWorkflowRequest(
+            @NotBlank String customerUserId,
+            @NotBlank String scheduleId,
+            @NotNull Instant scheduledFor,
+            @NotBlank String idempotencyKey,
+            @NotBlank String sourceAccountId,
+            @NotBlank String customerBillerId,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+            @Size(max = 160) String description
+    ) {}
+
+    public record LoanMaintenanceWorkflowRequest(
+            @NotBlank String operationType,
+            @NotNull Instant scheduledFor,
+            @NotNull LocalDate businessDate,
+            @NotBlank String idempotencyKey
+    ) {}
+
+    public record LoanMaintenanceResponse(String operationType, LocalDate businessDate, int processed, int eventsPublished) {}
 
     public record TransferResponse(
             String referenceNumber,
@@ -170,6 +207,48 @@ public final class WorkflowDtos {
             Instant createdAt,
             Instant updatedAt,
             Instant completedAt
+    ) {}
+
+    public record InternalLoanValidationResponse(
+            String loanId,
+            String customerUserId,
+            String linkedAccountId,
+            BigDecimal outstandingBalance,
+            String status
+    ) {}
+
+    public record InternalCreateLoanRepaymentRequest(
+            String loanId,
+            String customerUserId,
+            String sourceAccountId,
+            BigDecimal amount,
+            String workflowReference
+    ) {}
+
+    public record InternalCompleteLoanRepaymentRequest(String transactionId, String transactionReference) {}
+
+    public record InternalFailLoanRepaymentRequest(String reason) {}
+
+    public record InternalLoanMaintenanceRequest(LocalDate businessDate, String idempotencyKey) {}
+
+    public record InternalLoanMaintenanceResponse(String operationType, LocalDate businessDate, int processed, int eventsPublished) {}
+
+    public record InternalLoanRepaymentResponse(
+            String loanRepaymentId,
+            String loanId,
+            String customerUserId,
+            String sourceAccountId,
+            BigDecimal amount,
+            String workflowReference,
+            String transactionId,
+            String transactionReference,
+            String status,
+            String failureReason,
+            BigDecimal principalApplied,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant completedAt,
+            Instant reversedAt
     ) {}
 
     public record RecordTransactionRequest(

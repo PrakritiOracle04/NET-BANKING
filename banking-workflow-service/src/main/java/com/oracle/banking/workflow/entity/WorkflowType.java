@@ -5,5 +5,6 @@ public enum WorkflowType {
     WITHDRAWAL,
     TRANSFER,
     ACCOUNT_OPENING,
-    BILL_PAYMENT
+    BILL_PAYMENT,
+    LOAN_REPAYMENT
 }
