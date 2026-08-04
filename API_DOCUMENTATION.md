@@ -54,6 +54,8 @@ Authorization: Bearer <JWT>
 
 The JWT subject is the immutable Auth `userId`. Services authorize ownership with this ID, never with username. Administrative routes also require `ROLE_ADMIN`.
 
+Every login creates a separate session. The JWT contains a `sid` claim that identifies the matching `USER_SESSION` row. Before forwarding a protected request, Gateway asks Auth to verify the JWT signature and expiry, active session, active user, and current role. Tokens issued before `sid` support was introduced require a fresh login.
+
 Successful calls use the common envelope:
 
 ```json
@@ -178,10 +180,13 @@ All routes below use `http://localhost:8080`.
 | --- | --- | --- |
 | `POST /api/auth/register` | Public | Register app credentials and base customer profile |
 | `POST /api/auth/login` | Public | Validate password and optional OTP; return JWT |
-| `POST /api/auth/logout` | JWT | Invalidate active sessions |
+| `POST /api/auth/logout` | JWT | Invalidate only the current token's session |
+| `POST /api/auth/logout-all` | JWT | Invalidate all active sessions for the current user |
 | `GET /api/auth/me` | JWT | Return current Auth identity |
 
 Login accepts `username`, `password`, and optional `otpCode`. When 2FA is enabled, a missing/invalid OTP fails and no JWT is issued. The response's `twoFactorEnabled` reflects the stored factor state.
+
+Session expiry is absolute and defaults to 30 minutes from login; activity does not extend it. After logout, logout-all, expiry, user deactivation, or a role change, subsequent requests return `401`. Clients must clear the local token and return to login on `401`. Gateway returns `503` if Auth is unavailable because it cannot safely prove the session is active. See [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md) for the complete lifecycle.
 
 ### 2FA
 
@@ -315,6 +320,7 @@ Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with 
 
 | Caller | Callee | Contract | Reason |
 | --- | --- | --- | --- |
+| Gateway | Auth | `POST /internal/auth/sessions/validate` | Enforce active, unexpired, non-revoked sessions before routing |
 | Auth | Customer | `POST /internal/customers` | Create minimal profile during registration |
 | Auth | 2FA | status and verify routes | Enforce TOTP before issuing JWT |
 | Workflow | Customer | `GET /internal/customers/{userId}/onboarding-status` | Profile/KYC prerequisite |
@@ -362,6 +368,9 @@ Keep actual values only in the ignored `.env`.
 | --- | --- |
 | `*_DB_URL`, `*_DB_USERNAME`, `*_DB_PASSWORD` | Oracle connection for each data-owning service |
 | `JWT_SECRET` | Shared JWT signature verification secret |
+| `JWT_EXPIRATION_MINUTES` | Absolute JWT and session lifetime; default `30` |
+| `SESSION_CLEANUP_DELAY_MS` | Interval for marking expired session rows; default `60000` |
+| `GATEWAY_SESSION_VALIDATION_TIMEOUT_MS` | Gateway-to-Auth validation timeout; default `3000` |
 | `INTERNAL_API_KEY` | Shared credential for `/internal/**` calls |
 | `TWOFA_ENCRYPTION_KEY` | AES key for TOTP secrets |
 | `KYC_ENCRYPTION_KEY` | AES key and fingerprint derivation material for Aadhaar/PAN |
@@ -378,7 +387,8 @@ Keep actual values only in the ignored `.env`.
 | --- | --- |
 | Registration fails | Auth and Customer logs; shared internal key |
 | Login fails after 2FA | Current OTP and 2FA availability |
-| Business route returns `401` | Bearer token and shared JWT secret |
+| Business route returns `401` | Bearer token, JWT `sid`, session status/expiry, user status, and current role |
+| Protected route returns `503` | Auth health and Gateway `AUTH_SERVICE_URL`; Gateway fails closed when session validation is unavailable |
 | Internal call returns `401/403` | Exact `INTERNAL_API_KEY` match |
 | Account opening returns `409` | Profile completeness, KYC status, idempotency reuse |
 | Old enum produces Oracle check violation | Recreate disposable schema or add an explicit migration |

@@ -8,7 +8,7 @@ Internal APIs are private service-to-service routes. The frontend and Postman ca
 flowchart LR
     Client["Browser / Postman"] -->|"JWT + public request"| Gateway["API Gateway :8080"]
 
-    Gateway --> Auth["Auth"]
+    Gateway -->|"Validate JWT sid, then route"| Auth["Auth"]
     Gateway --> Customer["Customer"]
     Gateway --> Workflow["Workflow"]
     Gateway --> Account["Account"]
@@ -63,6 +63,7 @@ The JWT establishes:
 Internal APIs are implementation operations needed by another trusted service:
 
 ```http
+POST /internal/auth/sessions/validate
 POST /internal/customers
 GET /internal/customers/{userId}/onboarding-status
 POST /internal/accounts/open
@@ -89,6 +90,8 @@ They are not configured as Gateway routes. Therefore this should not work extern
 ```text
 http://localhost:8080/internal/accounts/open
 ```
+
+Gateway is itself a trusted caller. Before it routes a protected public request, it calls Auth directly at `POST /internal/auth/sessions/validate`, sending the original bearer token and `X-Internal-Api-Key`. Auth verifies the JWT `sid` against its session store. This internal validation endpoint is deliberately absent from Gateway routes, so a client cannot use the public port as an internal-service proxy.
 
 ## Why internal APIs exist
 

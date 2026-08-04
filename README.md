@@ -4,7 +4,7 @@ This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. 
 
 | Module | Port | Responsibility |
 | --- | ---: | --- |
-| `api-gateway` | 8080 | CORS, request logging, and API routing |
+| `api-gateway` | 8080 | CORS, active-session enforcement, request logging, and API routing |
 | `shared-kernel` | - | Reusable response contracts, constants, and validation utilities |
 | `auth-service` | 8081 | Registration, BCrypt login, JWT, RBAC, and user sessions |
 | `twofa-service` | 8082 | TOTP setup, QR generation, OTP verification, and encrypted factors |
@@ -39,6 +39,8 @@ Provide database credentials for:
 
 Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
 Set `CARD_ENCRYPTION_KEY` to another independent Base64 256-bit key. Card PAN values are encrypted with AES-GCM and are exposed only as masked values.
+
+Every login creates a revocable Auth session and places its identifier in the JWT `sid` claim. The Gateway validates that session with Auth before routing every protected `/api/**` request. See `SESSION_MANAGEMENT.md` for login, expiry, logout, logout-all, failure behavior, and client requirements.
 
 Kafka and Kafbat Kafka UI are included in `compose.yaml`. Banking containers connect through `kafka:29092`; host-side Kafka tools can use `localhost:9092`. Kafka UI is available at `http://localhost:8081`.
 
@@ -79,4 +81,4 @@ Swagger is available at `/swagger-ui` on each service. Send external requests th
 - `/api/bill-payments/**`
 - `/api/cards/**`
 
-The gateway forwards these paths to their owning services on ports 8081-8088.
+The gateway forwards these paths to their owning services on internal ports 8081-8091.
