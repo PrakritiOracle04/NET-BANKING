@@ -6,6 +6,7 @@ import com.oracle.banking.auth.dto.RegisterRequest;
 import com.oracle.banking.auth.dto.RegisterResponse;
 import com.oracle.banking.auth.dto.UserResponse;
 import com.oracle.banking.auth.service.AuthenticationService;
+import com.oracle.banking.auth.security.SessionPrincipal;
 import com.oracle.banking.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
@@ -41,12 +42,27 @@ public class AuthenticationController {
 
     @PostMapping("/logout")
     ApiResponse<Void> logout(Authentication authentication) {
-        service.logout(authentication.getName());
+        SessionPrincipal principal = principal(authentication);
+        service.logout(principal.userId(), principal.sessionId());
         return ApiResponse.success("Logout successful", null);
+    }
+
+    @PostMapping("/logout-all")
+    ApiResponse<Void> logoutAll(Authentication authentication) {
+        SessionPrincipal principal = principal(authentication);
+        service.logoutAll(principal.userId());
+        return ApiResponse.success("All sessions logged out", null);
     }
 
     @GetMapping("/me")
     ApiResponse<UserResponse> me(Authentication authentication) {
         return ApiResponse.success("Authenticated user", service.currentUser(authentication.getName()));
+    }
+
+    private SessionPrincipal principal(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof SessionPrincipal principal)) {
+            throw new com.oracle.banking.auth.exception.SessionAuthenticationException("Session is invalid or expired");
+        }
+        return principal;
     }
 }

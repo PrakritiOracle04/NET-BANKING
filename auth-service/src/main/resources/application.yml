@@ -5,9 +5,9 @@ spring:
   application:
     name: auth-service
   datasource:
-    url: ${AUTH_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${AUTH_DB_USERNAME:banking_auth}
-    password: ${AUTH_DB_PASSWORD:change-me}
+    url: ${AUTH_DB_URL}
+    username: ${AUTH_DB_USERNAME}
+    password: ${AUTH_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
@@ -16,27 +16,29 @@ spring:
   jackson:
     default-property-inclusion: non_null
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 banking:
   events:
-    registration-success-topic: ${REGISTRATION_SUCCESS_TOPIC:registration-success}
-    login-alert-topic: ${LOGIN_ALERT_TOPIC:login-alert}
+    registration-success-topic: registration-success
+    login-alert-topic: login-alert
 
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
-    expiration-minutes: ${JWT_EXPIRATION_MINUTES:30}
+    secret: ${JWT_SECRET}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES}
+  sessions:
+    cleanup-delay-ms: ${SESSION_CLEANUP_DELAY_MS}
 
 services:
   customer:
-    base-url: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+    base-url: ${CUSTOMER_SERVICE_URL}
   twofa:
-    base-url: ${TWOFA_SERVICE_URL:http://localhost:8082}
-  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
+    base-url: ${TWOFA_SERVICE_URL}
+  internal-api-key: ${INTERNAL_API_KEY}
 
 springdoc:
   swagger-ui:
