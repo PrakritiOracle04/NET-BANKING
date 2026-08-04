@@ -9,6 +9,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,6 +18,9 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "BANKING_SCHEDULES",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UK_SYSTEM_SCHEDULE_KEY",
+                columnNames = "SYSTEM_KEY"),
         indexes = {
             @Index(name = "IX_SCHEDULE_OWNER_STATUS", columnList = "CUSTOMER_USER_ID, STATUS"),
             @Index(name = "IX_SCHEDULE_DUE", columnList = "STATUS, NEXT_EXECUTION_AT"),
@@ -71,6 +75,9 @@ public class BankingSchedule {
     @Column(name = "SYSTEM_OWNED", nullable = false)
     private boolean systemOwned;
 
+    @Column(name = "SYSTEM_KEY", length = 30)
+    private String systemKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", nullable = false, length = 20)
     private ScheduleStatus status;
@@ -106,6 +113,7 @@ public class BankingSchedule {
         this.requestedDayOfMonth = requestedDayOfMonth;
         this.maxRetries = maxRetries;
         this.systemOwned = systemOwned;
+        this.systemKey = systemOwned ? operationType.name() : null;
         this.status = ScheduleStatus.ACTIVE;
     }
 
@@ -136,6 +144,7 @@ public class BankingSchedule {
     public Integer getRequestedDayOfMonth() { return requestedDayOfMonth; }
     public Integer getMaxRetries() { return maxRetries; }
     public boolean isSystemOwned() { return systemOwned; }
+    public String getSystemKey() { return systemKey; }
     public ScheduleStatus getStatus() { return status; }
     public Long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
@@ -170,4 +179,10 @@ public class BankingSchedule {
     public void resume(Instant nextExecutionAt) { this.nextExecutionAt = nextExecutionAt; status = ScheduleStatus.ACTIVE; }
     public void cancel() { status = ScheduleStatus.CANCELLED; }
     public void failed() { status = ScheduleStatus.FAILED; }
+    public void assignSystemKey() { systemKey = operationType.name(); }
+    public void retireDuplicateSystemSchedule() {
+        systemOwned = false;
+        systemKey = null;
+        status = ScheduleStatus.CANCELLED;
+    }
 }

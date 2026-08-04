@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -31,6 +32,14 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, "Access denied", request);
     }
 
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    ResponseEntity<ErrorResponse> missingHeader(MissingRequestHeaderException ex, HttpServletRequest request) {
+        if (request.getRequestURI().startsWith("/internal/")) {
+            return error(HttpStatus.FORBIDDEN, "Access denied", request);
+        }
+        return error(HttpStatus.BAD_REQUEST, "Required request header is missing", request);
+    }
+
     @ExceptionHandler(DownstreamFailure.class)
     ResponseEntity<ErrorResponse> downstream(DownstreamFailure ex, HttpServletRequest request) {
         return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
@@ -46,7 +55,7 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class, MissingRequestHeaderException.class})
+    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class, HttpMessageNotReadableException.class})
     ResponseEntity<ErrorResponse> validation(Exception ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "Invalid request", request);
     }

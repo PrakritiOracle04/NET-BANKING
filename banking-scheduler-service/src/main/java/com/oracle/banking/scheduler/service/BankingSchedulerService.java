@@ -50,6 +50,7 @@ public class BankingSchedulerService {
     private final RecurrenceCalculator recurrence;
     private final RestClient workflowClient;
     private final SchedulerEventPublisher events;
+    private final NotificationRecipientClient recipients;
     private final String internalApiKey;
     private final ZoneId businessZone;
     private final String reminderScanTime;
@@ -62,6 +63,7 @@ public class BankingSchedulerService {
             RecurrenceCalculator recurrence,
             RestClient.Builder restClientBuilder,
             SchedulerEventPublisher events,
+            NotificationRecipientClient recipients,
             @Value("${services.banking-workflow-service-url}") String workflowServiceUrl,
             @Value("${services.internal-api-key}") String internalApiKey,
             @Value("${banking.business-timezone}") String businessTimezone,
@@ -73,6 +75,7 @@ public class BankingSchedulerService {
         this.recurrence = recurrence;
         this.workflowClient = restClientBuilder.baseUrl(workflowServiceUrl).build();
         this.events = events;
+        this.recipients = recipients;
         this.internalApiKey = internalApiKey;
         this.businessZone = ZoneId.of(businessTimezone);
         this.reminderScanTime = reminderScanTime;
@@ -80,8 +83,7 @@ public class BankingSchedulerService {
         this.defaultMaxRetries = defaultMaxRetries;
     }
 
-    @Transactional
-    public void seedSystemSchedules() {
+    public synchronized void seedSystemSchedules() {
         seedSystem(ScheduleOperationType.EMI_REMINDER_SCAN, reminderScanTime, "Daily EMI reminder maintenance scan");
         seedSystem(ScheduleOperationType.LOAN_OVERDUE_SCAN, overdueScanTime, "Daily loan overdue maintenance scan");
     }
@@ -197,7 +199,6 @@ public class BankingSchedulerService {
 
     @Transactional
     public RunDueResponse runDue() {
-        seedSystemSchedules();
         Instant now = Instant.now();
         int claimed = 0;
         int succeeded = 0;
@@ -330,26 +331,45 @@ public class BankingSchedulerService {
     }
 
     private void seedSystem(ScheduleOperationType operationType, String localTime, String description) {
-        if (schedules.findFirstByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(operationType).isPresent()) return;
+        List<BankingSchedule> existing = schedules
+                .findByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(operationType);
+        if (!existing.isEmpty()) {
+            BankingSchedule canonical = existing.get(0);
+            for (int index = 1; index < existing.size(); index++) {
+                existing.get(index).retireDuplicateSystemSchedule();
+            }
+            canonical.assignSystemKey();
+            try {
+                schedules.saveAllAndFlush(existing);
+            } catch (DataIntegrityViolationException exception) {
+                log.info("System schedule {} was seeded by another runner", operationType);
+            }
+            return;
+        }
+        if (schedules.findBySystemKey(operationType.name()).isPresent()) return;
         Instant first = recurrence.dailyAt(businessZone, localTime);
         if (first.isBefore(Instant.now())) {
             first = first.plusSeconds(24 * 60 * 60);
         }
-        schedules.save(new BankingSchedule(
-                null,
-                operationType,
-                ScheduleType.DAILY,
-                null,
-                null,
-                null,
-                description,
-                businessZone.getId(),
-                first,
-                first,
-                null,
-                null,
-                defaultMaxRetries,
-                true));
+        try {
+            schedules.saveAndFlush(new BankingSchedule(
+                    null,
+                    operationType,
+                    ScheduleType.DAILY,
+                    null,
+                    null,
+                    null,
+                    description,
+                    businessZone.getId(),
+                    first,
+                    first,
+                    null,
+                    null,
+                    defaultMaxRetries,
+                    true));
+        } catch (DataIntegrityViolationException exception) {
+            log.info("System schedule {} was seeded by another runner", operationType);
+        }
     }
 
     private void validateBillPaymentRequest(ScheduleRequest request) {
@@ -380,6 +400,15 @@ public class BankingSchedulerService {
     }
 
     private DomainEvent event(String eventType, BankingSchedule schedule, ScheduleExecution execution, String status, String message) {
+        String recipient = schedule.isSystemOwned()
+                ? null
+                : recipients.emailOrNull(schedule.getCustomerUserId());
+        String templateName = switch (eventType) {
+            case "schedule-triggered" -> "SCHEDULE_TRIGGERED";
+            case "schedule-completed" -> "SCHEDULE_COMPLETED";
+            case "schedule-failed" -> "SCHEDULE_FAILED";
+            default -> "GENERIC_NOTIFICATION";
+        };
         return new DomainEvent(
                 eventType,
                 execution.getWorkflowIdempotencyKey(),
@@ -387,8 +416,8 @@ public class BankingSchedulerService {
                 execution.getScheduledFor(),
                 status,
                 Instant.now(),
-                null,
-                "GENERIC_NOTIFICATION",
+                recipient,
+                templateName,
                 Map.of("message", message));
     }
 

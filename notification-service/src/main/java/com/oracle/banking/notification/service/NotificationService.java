@@ -83,6 +83,33 @@ public class NotificationService {
                 "Oracle Banking notification",
                 "<p>{{message}}</p>",
                 "{{message}}");
+        seedTemplate(
+                "LOAN_CREATED",
+                "LOAN",
+                "Your Oracle Banking loan {{loanNumber}} is active",
+                "<h2>Loan created</h2>"
+                        + "<p>Your loan {{loanNumber}} for {{principalAmount}} is now active.</p>"
+                        + "<p>EMI: {{emiAmount}} &middot; Maturity: {{maturityDate}}</p>",
+                "Your loan {{loanNumber}} for {{principalAmount}} is active. "
+                        + "EMI: {{emiAmount}}. Maturity: {{maturityDate}}.");
+        seedTemplate(
+                "SCHEDULE_TRIGGERED",
+                "SCHEDULE",
+                "Scheduled payment started",
+                "<p>{{message}}</p>",
+                "{{message}}");
+        seedTemplate(
+                "SCHEDULE_COMPLETED",
+                "SCHEDULE",
+                "Scheduled payment completed",
+                "<p>{{message}}</p>",
+                "{{message}}");
+        seedTemplate(
+                "SCHEDULE_FAILED",
+                "SCHEDULE",
+                "Scheduled payment failed",
+                "<p>{{message}}</p>",
+                "{{message}}");
     }
 
     private void seedTemplate(

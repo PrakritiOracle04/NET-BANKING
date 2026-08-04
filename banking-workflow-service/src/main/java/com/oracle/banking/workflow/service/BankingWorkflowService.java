@@ -205,8 +205,8 @@ public class BankingWorkflowService {
             if (!Objects.equals(loan.customerUserId(), account.customerUserId())) {
                 throw new Forbidden("Loan does not belong to source account customer");
             }
-            if (!"ACTIVE".equals(loan.status())) {
-                throw new BadRequest("Only active loans can be repaid");
+            if (!"ACTIVE".equals(loan.status()) && !"OVERDUE".equals(loan.status())) {
+                throw new BadRequest("Only active or overdue loans can be repaid");
             }
 
             saga.prerequisitesValidated();

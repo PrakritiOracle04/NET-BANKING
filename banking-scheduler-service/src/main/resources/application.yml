@@ -5,45 +5,46 @@ spring:
   application:
     name: banking-scheduler-service
   datasource:
-    url: ${SCHEDULER_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${SCHEDULER_DB_USERNAME:BANKING}
-    password: ${SCHEDULER_DB_PASSWORD:change-me}
+    url: ${SCHEDULER_DB_URL}
+    username: ${SCHEDULER_DB_USERNAME}
+    password: ${SCHEDULER_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
-        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
-        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
-        retries: ${KAFKA_PRODUCER_RETRIES:0}
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
+        retries: ${KAFKA_PRODUCER_RETRIES}
 
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    secret: ${JWT_SECRET}
 
 services:
-  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
-  banking-workflow-service-url: ${BANKING_WORKFLOW_SERVICE_URL:http://localhost:8088}
+  internal-api-key: ${INTERNAL_API_KEY}
+  banking-workflow-service-url: ${BANKING_WORKFLOW_SERVICE_URL}
+  auth-service-url: ${AUTH_SERVICE_URL}
 
 banking:
-  business-timezone: ${BANKING_BUSINESS_TIMEZONE:Asia/Kolkata}
+  business-timezone: ${BANKING_BUSINESS_TIMEZONE}
   schedules:
-    scan-delay-ms: ${SCHEDULE_SCAN_DELAY_MS:30000}
-    default-max-retries: ${SCHEDULE_DEFAULT_MAX_RETRIES:3}
+    scan-delay-ms: ${SCHEDULE_SCAN_DELAY_MS}
+    default-max-retries: ${SCHEDULE_DEFAULT_MAX_RETRIES}
   system-schedules:
-    emi-reminder-time: ${EMI_REMINDER_SCAN_TIME:02:30}
-    loan-overdue-time: ${LOAN_OVERDUE_SCAN_TIME:03:00}
+    emi-reminder-time: ${EMI_REMINDER_SCAN_TIME}
+    loan-overdue-time: ${LOAN_OVERDUE_SCAN_TIME}
   events:
-    schedule-triggered-topic: ${SCHEDULE_TRIGGERED_TOPIC:schedule-triggered}
-    schedule-completed-topic: ${SCHEDULE_COMPLETED_TOPIC:schedule-completed}
-    schedule-failed-topic: ${SCHEDULE_FAILED_TOPIC:schedule-failed}
+    schedule-triggered-topic: schedule-triggered
+    schedule-completed-topic: schedule-completed
+    schedule-failed-topic: schedule-failed
 
 springdoc:
   swagger-ui:
