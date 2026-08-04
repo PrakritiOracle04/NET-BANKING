@@ -186,7 +186,7 @@ All routes below use `http://localhost:8080`.
 
 Login accepts `username`, `password`, and optional `otpCode`. When 2FA is enabled, a missing/invalid OTP fails and no JWT is issued. The response's `twoFactorEnabled` reflects the stored factor state.
 
-Session expiry is absolute and defaults to 30 minutes from login; activity does not extend it. After logout, logout-all, expiry, user deactivation, or a role change, subsequent requests return `401`. Clients must clear the local token and return to login on `401`. Gateway returns `503` if Auth is unavailable because it cannot safely prove the session is active. See [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md) for the complete lifecycle.
+Session expiry is absolute and is configured once through `JWT_EXPIRATION_MINUTES`; activity does not extend it. Both the JWT and its matching session row use the same calculated expiry. After logout, logout-all, expiry, user deactivation, or a role change, subsequent requests return `401`. Clients must clear the local token and return to login on `401`. Gateway returns `503` if Auth is unavailable because it cannot safely prove the session is active. See [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md) for the complete lifecycle.
 
 ### 2FA
 
@@ -368,7 +368,7 @@ Keep actual values only in the ignored `.env`.
 | --- | --- |
 | `*_DB_URL`, `*_DB_USERNAME`, `*_DB_PASSWORD` | Oracle connection for each data-owning service |
 | `JWT_SECRET` | Shared JWT signature verification secret |
-| `JWT_EXPIRATION_MINUTES` | Absolute JWT and session lifetime; default `30` |
+| `JWT_EXPIRATION_MINUTES` | Required single source for both JWT and session lifetime; local `.env` uses `30` |
 | `SESSION_CLEANUP_DELAY_MS` | Interval for marking expired session rows; default `60000` |
 | `GATEWAY_SESSION_VALIDATION_TIMEOUT_MS` | Gateway-to-Auth validation timeout; default `3000` |
 | `INTERNAL_API_KEY` | Shared credential for `/internal/**` calls |

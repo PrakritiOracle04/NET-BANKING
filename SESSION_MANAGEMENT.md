@@ -69,7 +69,7 @@ Invalidation records `INVALIDATED` plus `INVALIDATED_AT`; it does not delete aud
 
 ## Expiry behavior
 
-The default lifetime is 30 minutes, configured with `JWT_EXPIRATION_MINUTES`. It is an absolute lifetime from login, not an inactivity timeout and not a sliding session. API activity does not extend it.
+The lifetime is configured only with the required `JWT_EXPIRATION_MINUTES` value in `.env`; local development currently uses 30 minutes. Auth calculates one expiry instant from that value and assigns it to both the JWT and the matching `USER_SESSION` row. Changing that single line to `45` makes all newly issued tokens and sessions last 45 minutes. Existing sessions keep the expiry assigned when they were created. It is an absolute lifetime from login, not an inactivity timeout and not a sliding session. API activity does not extend it.
 
 JWT parsing rejects the token as soon as `exp` passes. A scheduled Auth cleanup also changes due `ACTIVE` database rows to `EXPIRED`; its interval is controlled by `SESSION_CLEANUP_DELAY_MS` and defaults to 60 seconds. Cleanup is housekeeping, not the security boundary: validation checks the timestamp even before the scheduler updates the status.
 
