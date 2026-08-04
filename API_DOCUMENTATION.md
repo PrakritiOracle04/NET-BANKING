@@ -362,7 +362,7 @@ Identifiers are UUID values represented as `VARCHAR2(36)` because the project in
 
 ## Required environment variables
 
-Keep actual values only in the ignored `.env`.
+Keep actual values only in the ignored `.env`. It is the required single source for every `${VARIABLE}` referenced by application YAML and Compose. There are no YAML fallback values; a missing variable is a startup/configuration error.
 
 | Variable group | Purpose |
 | --- | --- |

@@ -5,48 +5,48 @@ spring:
   application:
     name: banking-workflow-service
   datasource:
-    url: ${WORKFLOW_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${WORKFLOW_DB_USERNAME:BANKING}
-    password: ${WORKFLOW_DB_PASSWORD:change-me}
+    url: ${WORKFLOW_DB_URL}
+    username: ${WORKFLOW_DB_USERNAME}
+    password: ${WORKFLOW_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
-        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
-        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
-        retries: ${KAFKA_PRODUCER_RETRIES:0}
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
+        retries: ${KAFKA_PRODUCER_RETRIES}
 
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    secret: ${JWT_SECRET}
 
 services:
-  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
-  account-service-url: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
-  beneficiary-service-url: ${BENEFICIARY_SERVICE_URL:http://localhost:8086}
-  transaction-service-url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
-  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
-  customer-service-url: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
-  branch-service-url: ${BRANCH_SERVICE_URL:http://localhost:8084}
-  billpayment-service-url: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+  internal-api-key: ${INTERNAL_API_KEY}
+  account-service-url: ${ACCOUNT_SERVICE_URL}
+  beneficiary-service-url: ${BENEFICIARY_SERVICE_URL}
+  transaction-service-url: ${TRANSACTION_SERVICE_URL}
+  auth-service-url: ${AUTH_SERVICE_URL}
+  customer-service-url: ${CUSTOMER_SERVICE_URL}
+  branch-service-url: ${BRANCH_SERVICE_URL}
+  billpayment-service-url: ${BILLPAYMENT_SERVICE_URL}
 
 banking:
   saga:
-    recovery-delay-ms: ${SAGA_RECOVERY_DELAY_MS:30000}
+    recovery-delay-ms: ${SAGA_RECOVERY_DELAY_MS}
   events:
-    transaction-created-topic: ${TRANSACTION_CREATED_TOPIC:transaction-created}
-    account-debited-topic: ${ACCOUNT_DEBITED_TOPIC:account-debited}
-    account-credited-topic: ${ACCOUNT_CREDITED_TOPIC:account-credited}
-    bill-payment-success-topic: ${BILL_PAYMENT_SUCCESS_TOPIC:bill-payment-success}
-    bill-payment-failed-topic: ${BILL_PAYMENT_FAILED_TOPIC:bill-payment-failed}
+    transaction-created-topic: ${TRANSACTION_CREATED_TOPIC}
+    account-debited-topic: ${ACCOUNT_DEBITED_TOPIC}
+    account-credited-topic: ${ACCOUNT_CREDITED_TOPIC}
+    bill-payment-success-topic: ${BILL_PAYMENT_SUCCESS_TOPIC}
+    bill-payment-failed-topic: ${BILL_PAYMENT_FAILED_TOPIC}
 
 springdoc:
   swagger-ui:

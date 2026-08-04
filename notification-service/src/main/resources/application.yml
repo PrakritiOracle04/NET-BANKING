@@ -4,27 +4,27 @@ spring:
   application:
     name: notification-service
   datasource:
-    url: ${NOTIFICATION_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${NOTIFICATION_DB_USERNAME:appuser}
-    password: ${NOTIFICATION_DB_PASSWORD:apppassword}
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME}
+    password: ${NOTIFICATION_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   mail:
-    host: ${SMTP_HOST:smtp.gmail.com}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
     properties:
-      mail.smtp.auth: ${SMTP_AUTH:true}
-      mail.smtp.starttls.enable: ${SMTP_STARTTLS_ENABLE:true}
-      mail.smtp.connectiontimeout: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
-      mail.smtp.timeout: ${SMTP_TIMEOUT_MS:5000}
-      mail.smtp.writetimeout: ${SMTP_WRITE_TIMEOUT_MS:5000}
+      mail.smtp.auth: ${SMTP_AUTH}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS_ENABLE}
+      mail.smtp.connectiontimeout: ${SMTP_CONNECTION_TIMEOUT_MS}
+      mail.smtp.timeout: ${SMTP_TIMEOUT_MS}
+      mail.smtp.writetimeout: ${SMTP_WRITE_TIMEOUT_MS}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -39,12 +39,12 @@ spring:
         spring.json.trusted.packages: '*'
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    secret: ${JWT_SECRET}
 notification:
-  sender-email: ${SMTP_FROM_EMAIL:}
-  sender-name: ${SMTP_FROM_NAME:Oracle Banking}
-  retry-delay-ms: ${NOTIFICATION_RETRY_DELAY_MS:60000}
-  max-retries: ${NOTIFICATION_MAX_RETRIES:3}
+  sender-email: ${SMTP_FROM_EMAIL}
+  sender-name: ${SMTP_FROM_NAME}
+  retry-delay-ms: ${NOTIFICATION_RETRY_DELAY_MS}
+  max-retries: ${NOTIFICATION_MAX_RETRIES}
 springdoc:
   swagger-ui:
     path: /swagger-ui

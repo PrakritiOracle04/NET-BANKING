@@ -5,44 +5,44 @@ spring:
   application:
     name: card-service
   datasource:
-    url: ${CARD_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${CARD_DB_USERNAME:BANKING}
-    password: ${CARD_DB_PASSWORD:change-me}
+    url: ${CARD_DB_URL}
+    username: ${CARD_DB_USERNAME}
+    password: ${CARD_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
-        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
-        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
-        retries: ${KAFKA_PRODUCER_RETRIES:0}
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
+        retries: ${KAFKA_PRODUCER_RETRIES}
 
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    secret: ${JWT_SECRET}
 
 card:
-  encryption-key: ${CARD_ENCRYPTION_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
-  maximum-daily-limit: ${CARD_MAX_DAILY_LIMIT:100000.00}
-  validity-years: ${CARD_VALIDITY_YEARS:5}
+  encryption-key: ${CARD_ENCRYPTION_KEY}
+  maximum-daily-limit: ${CARD_MAX_DAILY_LIMIT}
+  validity-years: ${CARD_VALIDITY_YEARS}
   events:
-    issued-topic: ${CARD_ISSUED_TOPIC:card-issued}
-    activated-topic: ${CARD_ACTIVATED_TOPIC:card-activated}
-    blocked-topic: ${CARD_BLOCKED_TOPIC:card-blocked}
-    unblocked-topic: ${CARD_UNBLOCKED_TOPIC:card-unblocked}
-    limit-updated-topic: ${CARD_LIMIT_UPDATED_TOPIC:card-limit-updated}
+    issued-topic: ${CARD_ISSUED_TOPIC}
+    activated-topic: ${CARD_ACTIVATED_TOPIC}
+    blocked-topic: ${CARD_BLOCKED_TOPIC}
+    unblocked-topic: ${CARD_UNBLOCKED_TOPIC}
+    limit-updated-topic: ${CARD_LIMIT_UPDATED_TOPIC}
 
 services:
-  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
-  account-service-url: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
-  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  internal-api-key: ${INTERNAL_API_KEY}
+  account-service-url: ${ACCOUNT_SERVICE_URL}
+  auth-service-url: ${AUTH_SERVICE_URL}
 
 springdoc:
   swagger-ui:

@@ -44,7 +44,7 @@ Every login creates a revocable Auth session and places its identifier in the JW
 
 Kafka and Kafbat Kafka UI are included in `compose.yaml`. Banking containers connect through `kafka:29092`; host-side Kafka tools can use `localhost:9092`. Kafka UI is available at `http://localhost:8081`.
 
-Keep real configuration in the ignored root `.env`. Create the Oracle user/schema yourself, then start the services. JPA entities are currently the development DDL source of truth; use a fresh schema after structural changes because `ddl-auto: update` is not a production migration engine.
+Keep real configuration in the ignored root `.env`. It is the single source of truth for every environment-specific value referenced by service YAML and Compose; YAML placeholders intentionally have no fallback values, so a missing variable fails configuration instead of silently using a development default. The checked-in YAML retains only structural application settings such as service ports and Spring/JPA behavior. Create the Oracle user/schema yourself, then start the services. JPA entities are currently the development DDL source of truth; use a fresh schema after structural changes because `ddl-auto: update` is not a production migration engine.
 
 ## Build and Run
 
