@@ -23,8 +23,8 @@ spring:
 
 banking:
   events:
-    registration-success-topic: ${REGISTRATION_SUCCESS_TOPIC}
-    login-alert-topic: ${LOGIN_ALERT_TOPIC}
+    registration-success-topic: registration-success
+    login-alert-topic: login-alert
 
 security:
   jwt:

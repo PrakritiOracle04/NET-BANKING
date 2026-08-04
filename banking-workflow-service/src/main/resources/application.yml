@@ -42,11 +42,11 @@ banking:
   saga:
     recovery-delay-ms: ${SAGA_RECOVERY_DELAY_MS}
   events:
-    transaction-created-topic: ${TRANSACTION_CREATED_TOPIC}
-    account-debited-topic: ${ACCOUNT_DEBITED_TOPIC}
-    account-credited-topic: ${ACCOUNT_CREDITED_TOPIC}
-    bill-payment-success-topic: ${BILL_PAYMENT_SUCCESS_TOPIC}
-    bill-payment-failed-topic: ${BILL_PAYMENT_FAILED_TOPIC}
+    transaction-created-topic: transaction-created
+    account-debited-topic: account-debited
+    account-credited-topic: account-credited
+    bill-payment-success-topic: bill-payment-success
+    bill-payment-failed-topic: bill-payment-failed
 
 springdoc:
   swagger-ui:

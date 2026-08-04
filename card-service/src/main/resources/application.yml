@@ -33,11 +33,11 @@ card:
   maximum-daily-limit: ${CARD_MAX_DAILY_LIMIT}
   validity-years: ${CARD_VALIDITY_YEARS}
   events:
-    issued-topic: ${CARD_ISSUED_TOPIC}
-    activated-topic: ${CARD_ACTIVATED_TOPIC}
-    blocked-topic: ${CARD_BLOCKED_TOPIC}
-    unblocked-topic: ${CARD_UNBLOCKED_TOPIC}
-    limit-updated-topic: ${CARD_LIMIT_UPDATED_TOPIC}
+    issued-topic: card-issued
+    activated-topic: card-activated
+    blocked-topic: card-blocked
+    unblocked-topic: card-unblocked
+    limit-updated-topic: card-limit-updated
 
 services:
   internal-api-key: ${INTERNAL_API_KEY}
