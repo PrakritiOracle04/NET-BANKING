@@ -8,6 +8,7 @@ import com.oracle.banking.auth.dto.RegisterResponse;
 import com.oracle.banking.auth.dto.UserResponse;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
+import com.oracle.banking.auth.entity.SessionStatus;
 import com.oracle.banking.auth.entity.UserSession;
 import com.oracle.banking.auth.event.AuthNotificationEventPublisher;
 import com.oracle.banking.auth.exception.BadCredentialsException;
@@ -37,12 +38,12 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final CustomerClient customerClient;
     private final TwoFactorClient twoFactorClient;
-    private final JwtService jwtService;
+    private final SessionService sessionService;
     private final AuthNotificationEventPublisher notificationEvents;
 
     public AuthenticationService(AppUserRepository users, RoleRepository roles, UserSessionRepository sessions,
                                  PasswordEncoder passwordEncoder, CustomerClient customerClient,
-                                 TwoFactorClient twoFactorClient, JwtService jwtService,
+                                 TwoFactorClient twoFactorClient, SessionService sessionService,
                                  AuthNotificationEventPublisher notificationEvents) {
         this.users = users;
         this.roles = roles;
@@ -50,7 +51,7 @@ public class AuthenticationService {
         this.passwordEncoder = passwordEncoder;
         this.customerClient = customerClient;
         this.twoFactorClient = twoFactorClient;
-        this.jwtService = jwtService;
+        this.sessionService = sessionService;
         this.notificationEvents = notificationEvents;
     }
 
@@ -83,8 +84,7 @@ public class AuthenticationService {
             if (request.otpCode() == null || request.otpCode().isBlank()) throw new TwoFactorException("OTP code is required");
             twoFactorClient.verify(user.getUserId(), request.otpCode());
         }
-        IssuedToken token = jwtService.issue(user);
-        sessions.save(new UserSession(user.getUserId(), token.expiresAt()));
+        IssuedToken token = sessionService.issue(user);
         notificationEvents.loginSucceeded(user);
         log.info("Login successful for user {}", user.getUserId());
         return new LoginResponse(token.value(), "Bearer", token.expiresAt(), user.getUsername(),
@@ -93,7 +93,7 @@ public class AuthenticationService {
 
     @Transactional
     public void logout(String userId) {
-        sessions.findByUserIdAndStatus(userId, "ACTIVE").forEach(UserSession::invalidate);
+        sessions.findByUserIdAndStatus(userId, SessionStatus.ACTIVE).forEach(UserSession::invalidate);
         log.info("Logout completed for user {}", userId);
     }
 
