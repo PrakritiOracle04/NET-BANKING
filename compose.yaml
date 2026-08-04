@@ -152,9 +152,9 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      LOAN_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      AUTH_SERVICE_URL: http://auth-service:8081
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      LOAN_DB_URL: ${LOAN_DB_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - auth-service
@@ -198,9 +198,9 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      SCHEDULER_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      BANKING_WORKFLOW_SERVICE_URL: http://banking-workflow-service:8088
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEDULER_DB_URL: ${SCHEDULER_DB_URL}
+      BANKING_WORKFLOW_SERVICE_URL: ${BANKING_WORKFLOW_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - banking-workflow-service

@@ -65,11 +65,11 @@ spring:
               predicates:
                 - Path=/api/cards/**
             - id: loan-service
-              uri: ${LOAN_SERVICE_URL:http://localhost:8092}
+              uri: ${LOAN_SERVICE_URL}
               predicates:
                 - Path=/api/loans/**
             - id: banking-scheduler-service
-              uri: ${BANKING_SCHEDULER_SERVICE_URL:http://localhost:8093}
+              uri: ${BANKING_SCHEDULER_SERVICE_URL}
               predicates:
                 - Path=/api/schedules/**
 

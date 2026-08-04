@@ -37,7 +37,7 @@ public class TwoFactorService {
     private final SecureRandom random = new SecureRandom();
 
     public TwoFactorService(AuthFactorRepository factors,
-                            @Value("${twofa.issuer:Oracle Internet Banking}") String issuer,
+                            @Value("${twofa.issuer}") String issuer,
                             @Value("${twofa.encryption-key}") String encodedKey) {
         this.factors = factors;
         this.issuer = issuer;

@@ -19,7 +19,7 @@ public class EmiCalculator {
     private static final MathContext MC = new MathContext(24, RoundingMode.HALF_UP);
     private final int maxTenureMonths;
 
-    public EmiCalculator(@Value("${loan.max-tenure-months:360}") int maxTenureMonths) {
+    public EmiCalculator(@Value("${loan.max-tenure-months}") int maxTenureMonths) {
         this.maxTenureMonths = maxTenureMonths;
     }
 

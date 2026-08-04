@@ -15,7 +15,7 @@ public class SessionExpiryScheduler {
         this.sessions = sessions;
     }
 
-    @Scheduled(fixedDelayString = "${security.sessions.cleanup-delay-ms:60000}")
+    @Scheduled(fixedDelayString = "${security.sessions.cleanup-delay-ms}")
     public void expireDueSessions() {
         int expired = sessions.expireDueSessions();
         if (expired > 0) log.info("Marked {} authentication sessions as expired", expired);
