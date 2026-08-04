@@ -5,41 +5,41 @@ spring:
   application:
     name: loan-service
   datasource:
-    url: ${LOAN_DB_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
-    username: ${LOAN_DB_USERNAME:BANKING}
-    password: ${LOAN_DB_PASSWORD:change-me}
+    url: ${LOAN_DB_URL}
+    username: ${LOAN_DB_USERNAME}
+    password: ${LOAN_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
-        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
-        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
-        retries: ${KAFKA_PRODUCER_RETRIES:0}
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
+        retries: ${KAFKA_PRODUCER_RETRIES}
 
 security:
   jwt:
-    secret: ${JWT_SECRET:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+    secret: ${JWT_SECRET}
 
 services:
-  internal-api-key: ${INTERNAL_API_KEY:replace-this-before-production}
-  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  internal-api-key: ${INTERNAL_API_KEY}
+  auth-service-url: ${AUTH_SERVICE_URL}
 
 loan:
-  max-tenure-months: ${LOAN_MAX_TENURE_MONTHS:360}
+  max-tenure-months: ${LOAN_MAX_TENURE_MONTHS}
   events:
-    loan-created-topic: ${LOAN_CREATED_TOPIC:loan-created}
-    emi-reminder-topic: ${EMI_REMINDER_TOPIC:emi-reminder}
-    loan-overdue-topic: ${LOAN_OVERDUE_TOPIC:loan-overdue}
+    loan-created-topic: loan-created
+    emi-reminder-topic: emi-reminder
+    loan-overdue-topic: loan-overdue
   maintenance:
-    emi-reminder-days-before: ${EMI_REMINDER_DAYS_BEFORE:3}
+    emi-reminder-days-before: ${EMI_REMINDER_DAYS_BEFORE}
 
 springdoc:
   swagger-ui:
