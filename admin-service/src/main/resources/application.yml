@@ -6,6 +6,9 @@ spring:
     name: admin-service
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 security:
   jwt:
@@ -13,6 +16,32 @@ security:
 
 services:
   internal-api-key: ${INTERNAL_API_KEY}
+  auth-service-url: ${AUTH_SERVICE_URL}
+  customer-service-url: ${CUSTOMER_SERVICE_URL}
+  branch-service-url: ${BRANCH_SERVICE_URL}
+  account-service-url: ${ACCOUNT_SERVICE_URL}
+  beneficiary-service-url: ${BENEFICIARY_SERVICE_URL}
+  transaction-service-url: ${TRANSACTION_SERVICE_URL}
+  workflow-service-url: ${BANKING_WORKFLOW_SERVICE_URL}
+  billpayment-service-url: ${BILLPAYMENT_SERVICE_URL}
+  card-service-url: ${CARD_SERVICE_URL}
+  loan-service-url: ${LOAN_SERVICE_URL}
+  scheduler-service-url: ${BANKING_SCHEDULER_SERVICE_URL}
+  audit-service-url: ${AUDIT_SERVICE_URL}
+
+admin:
+  client:
+    connect-timeout-ms: ${ADMIN_CLIENT_CONNECT_TIMEOUT_MS}
+    read-timeout-ms: ${ADMIN_CLIENT_READ_TIMEOUT_MS}
+  executor:
+    threads: ${ADMIN_EXECUTOR_THREADS}
+  cache:
+    summary-seconds: ${ADMIN_SUMMARY_CACHE_SECONDS}
+  limits:
+    max-page-size: ${ADMIN_MAX_PAGE_SIZE}
+    global-search-group-size: ${ADMIN_GLOBAL_SEARCH_GROUP_SIZE}
+  events:
+    sensitive-action-topic: admin-sensitive-action
 
 springdoc:
   swagger-ui:
