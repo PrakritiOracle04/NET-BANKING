@@ -19,6 +19,9 @@ This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. 
 | `card-service` | 8091 | Secure card issuance, state, and daily limits |
 | `loan-service` | 8092 | Loan registration, EMI schedules, balances, and repayment history |
 | `banking-scheduler-service` | 8093 | Scheduled bill payments and protected maintenance schedules |
+| `audit-service` | 8094 | Append-only sanitized Kafka audit history and ADMIN queries |
+| `report-service` | 8095 | Asynchronous CSV/PDF generation and authenticated downloads |
+| `admin-service` | 8096 | Stateless read-only operational aggregation for administrators |
 
 The original entity files remain in `src/main/java/com/oracle/banking/entity` and `legacy-entity-reference` as reference material. Service models are implemented only inside their owning service. See `DATA_OWNERSHIP.md` for the field-level ownership rules and `API_DOCUMENTATION.md` for complete routes and flows.
 
@@ -42,6 +45,8 @@ Provide database credentials for:
 - `LOAN_DB_*`
 - `SCHEDULER_DB_*`
 - `NOTIFICATION_DB_*`
+- `AUDIT_DB_*`
+- `REPORT_DB_*`
 
 Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
 Set `CARD_ENCRYPTION_KEY` to another independent Base64 256-bit key. Card PAN values are encrypted with AES-GCM and are exposed only as masked values.
@@ -89,5 +94,8 @@ Swagger is available at `/swagger-ui` on each service. Send external requests th
 - `/api/loans/**`
 - `/api/schedules/**`
 - `/api/notifications/**`
+- `/api/audit/**`
+- `/api/reports/**`
+- `/api/admin/**`
 
-The gateway forwards these paths to their owning services on ports 8081-8093. See `FRONTEND_API_CONTRACT.md` for frontend-ready URLs, request bodies, auth rules, and smoke-test status.
+The gateway forwards these paths to their owning services on ports 8081-8096. See `FRONTEND_API_CONTRACT.md` for frontend-ready URLs, request bodies, auth rules, and smoke-test status. Phase 5 operations, audit, reporting, storage, and troubleshooting are documented in `PHASE5_OPERATIONS_GUIDE.md`.
