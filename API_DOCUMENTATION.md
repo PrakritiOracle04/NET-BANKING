@@ -364,6 +364,75 @@ The following gateway flows were manually verified on 2026-08-04:
 
 During testing, `BANK_TRANSACTIONS` was recreated from the current Transaction entity so it uses `CUSTOMER_USER_ID` and accepts `BILL_PAYMENT` transaction types. If an older local schema recreates `CUSTOMER_USERNAME`, rebuild and recreate `transaction-service` from a fresh JAR/image before retesting.
 
+## Phase 5 Operations APIs
+
+All Phase 5 public routes are accessed through Gateway `http://localhost:8080`. Gateway validates the JWT `sid` with Auth before routing; the destination service also validates JWT signature, expiry, subject, `sid`, and roles.
+
+### Audit (`ADMIN`)
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/audit` | Paginated filtered audit search |
+| GET | `/api/audit/{id}` | One immutable audit record |
+| GET | `/api/audit/users/{userId}` | User timeline |
+| GET | `/api/audit/timeline` | Chronological filtered timeline |
+| GET | `/api/audit/summary` | Bounded counts by event type, status, and severity |
+
+Supported filters include `from`, `to`, `actorUserId`, `action`, `sourceService`, `entityType`, `referenceId`, `correlationId`, `status`, and `severity`. Page size and date ranges are capped.
+
+### Reports
+
+Every creation route accepts optional `Idempotency-Key` and returns `202 Accepted`. The request body is:
+
+```json
+{
+  "format": "CSV",
+  "ownerUserId": null,
+  "accountId": "required-for-account-statements",
+  "from": "2026-08-01T00:00:00Z",
+  "to": "2026-08-05T23:59:59Z",
+  "filters": {}
+}
+```
+
+| Method | Route | Access |
+| --- | --- | --- |
+| POST | `/api/reports/account-statements` | owner/ADMIN |
+| POST | `/api/reports/transactions` | CUSTOMER/ADMIN |
+| POST | `/api/reports/customers` | ADMIN |
+| POST | `/api/reports/cards` | owner/ADMIN |
+| POST | `/api/reports/loans` | owner/ADMIN |
+| POST | `/api/reports/bill-payments` | owner/ADMIN |
+| POST | `/api/reports/schedules` | owner/ADMIN |
+| POST | `/api/reports/admin-overview` | ADMIN |
+| POST | `/api/reports/audit` | ADMIN |
+| GET | `/api/reports/{id}` | requester/ADMIN |
+| GET | `/api/reports/history` | requester; ADMIN may filter `requesterUserId` |
+| GET | `/api/reports/{id}/download` | requester/ADMIN; binary response |
+
+Report workers use the immutable requester scope stored in `REPORT_JOBS`; they never store or reuse a JWT. Files are generated in the configured report volume and filesystem paths are never returned publicly.
+
+### Admin (`ADMIN`)
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/admin/dashboard` | Concurrent operational summaries with section status |
+| GET | `/api/admin/customers` | Customer monitoring |
+| GET | `/api/admin/accounts` | Account monitoring |
+| GET | `/api/admin/beneficiaries` | Beneficiary monitoring |
+| GET | `/api/admin/transactions` | Transaction monitoring |
+| GET | `/api/admin/workflows` | Saga and compensation monitoring |
+| GET | `/api/admin/loans` | Loan monitoring including loan type |
+| GET | `/api/admin/cards` | Masked card monitoring |
+| GET | `/api/admin/branches` | Branch monitoring |
+| GET | `/api/admin/bill-payments` | Bill-payment monitoring |
+| GET | `/api/admin/schedules` | Schedule monitoring |
+| GET | `/api/admin/audit-summary` | Audit counts |
+| GET | `/api/admin/system` | Service health aggregation |
+| GET | `/api/admin/search?query=...` | Bounded grouped global search |
+
+Admin is read-only and owns no database tables. Dashboard failures are reported per section; `503` is returned when all core sources are unavailable.
+
 ## Internal dependency map
 
 | Caller | Callee | Contract | Reason |

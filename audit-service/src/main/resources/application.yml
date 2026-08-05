@@ -1,0 +1,55 @@
+server:
+  port: 8094
+
+spring:
+  application:
+    name: audit-service
+  datasource:
+    url: ${AUDIT_DB_URL}
+    username: ${AUDIT_DB_USERNAME}
+    password: ${AUDIT_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: manual_immediate
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+
+services:
+  internal-api-key: ${INTERNAL_API_KEY}
+
+audit:
+  consumer:
+    retry-count: ${AUDIT_KAFKA_RETRY_COUNT}
+    retry-backoff-ms: ${AUDIT_KAFKA_RETRY_BACKOFF_MS}
+    metadata-max-length: ${AUDIT_METADATA_MAX_LENGTH}
+  query:
+    max-range-days: ${AUDIT_MAX_QUERY_RANGE_DAYS}
+  kafka:
+    consumer-group: audit-service-v1
+    dead-letter-topic: audit-events-dlt
+    topics: registration-success,login-alert,authentication-failed,session-logout,session-logout-all,transaction-created,transaction-reversed,account-debited,account-credited,account-opened,account-status-changed,bill-payment-success,bill-payment-failed,loan-payment-success,loan-payment-failed,workflow-completed,workflow-failed,workflow-compensated,card-issued,card-activated,card-blocked,card-unblocked,card-limit-updated,beneficiary-created,beneficiary-updated,beneficiary-deleted,beneficiary-status-changed,kyc-submitted,kyc-status-changed,loan-created,emi-reminder,loan-overdue,loan-status-changed,schedule-created,schedule-updated,schedule-paused,schedule-resumed,schedule-cancelled,schedule-triggered,schedule-completed,schedule-failed,report-requested,report-generated,report-failed,report-downloaded,report-expired,admin-sensitive-action
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

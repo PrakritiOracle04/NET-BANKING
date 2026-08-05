@@ -6,6 +6,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,7 @@ public class LoanEventPublisher {
     private final String loanCreatedTopic;
     private final String emiReminderTopic;
     private final String loanOverdueTopic;
+    private final String loanStatusChangedTopic;
     private final NotificationRecipientClient recipients;
 
     public LoanEventPublisher(
@@ -27,81 +30,97 @@ public class LoanEventPublisher {
             @Value("${loan.events.loan-created-topic}") String loanCreatedTopic,
             @Value("${loan.events.emi-reminder-topic}") String emiReminderTopic,
             @Value("${loan.events.loan-overdue-topic}") String loanOverdueTopic,
+            @Value("${loan.events.loan-status-changed-topic}") String loanStatusChangedTopic,
             NotificationRecipientClient recipients) {
         this.kafka = kafka;
         this.loanCreatedTopic = loanCreatedTopic;
         this.emiReminderTopic = emiReminderTopic;
         this.loanOverdueTopic = loanOverdueTopic;
+        this.loanStatusChangedTopic = loanStatusChangedTopic;
         this.recipients = recipients;
     }
 
     public void loanCreated(Loan loan) {
-        try {
-            DomainEvent event = new DomainEvent(
-                    "loan-created",
-                    loan.getLoanNumber(),
-                    loan.getCustomerUserId(),
-                    loan.getLoanId(),
-                    loan.getPrincipalAmount(),
-                    "ACTIVE",
-                    Instant.now(),
-                    recipients.email(loan.getCustomerUserId()),
-                    "LOAN_CREATED",
-                    Map.of(
-                            "loanNumber", loan.getLoanNumber(),
-                            "loanType", loan.getLoanType().name(),
-                            "principalAmount", loan.getPrincipalAmount().toPlainString(),
-                            "emiAmount", loan.getEmiAmount().toPlainString(),
-                            "maturityDate", loan.getMaturityDate().toString()));
-            publish(loanCreatedTopic, event.referenceNumber(), event);
-        } catch (RuntimeException exception) {
-            log.warn("Loan created notification was skipped for loan {}", loan.getLoanId());
-        }
+        DomainEvent event = new DomainEvent(
+                "loan-created",
+                loan.getLoanNumber(),
+                loan.getCustomerUserId(),
+                loan.getLoanId(),
+                loan.getPrincipalAmount(),
+                "ACTIVE",
+                Instant.now(),
+                recipientOrNull(loan.getCustomerUserId(), loan.getLoanId()),
+                "LOAN_CREATED",
+                Map.of(
+                        "loanNumber", loan.getLoanNumber(),
+                        "loanType", loan.getLoanType().name(),
+                        "principalAmount", loan.getPrincipalAmount().toPlainString(),
+                        "emiAmount", loan.getEmiAmount().toPlainString(),
+                        "maturityDate", loan.getMaturityDate().toString()));
+        publish(loanCreatedTopic, event.referenceNumber(), event);
     }
 
     public boolean emiReminder(String reference, String customerUserId, String loanId, BigDecimal amount, LocalDate dueDate) {
-        try {
-            DomainEvent event = new DomainEvent(
-                    "emi-reminder",
-                    reference,
-                    customerUserId,
-                    loanId,
-                    amount,
-                    "PENDING",
-                    Instant.now(),
-                    recipients.email(customerUserId),
-                    "GENERIC_NOTIFICATION",
-                    Map.of(
-                            "message", "Your EMI is due on " + dueDate + ".",
-                            "dueDate", dueDate.toString(),
-                            "amount", amount.toPlainString()));
-            return publishAndAwait(emiReminderTopic, reference, event);
-        } catch (RuntimeException exception) {
-            log.warn("EMI reminder notification recipient lookup failed for loan {}", loanId);
-            return false;
-        }
+        DomainEvent event = new DomainEvent(
+                "emi-reminder",
+                reference,
+                customerUserId,
+                loanId,
+                amount,
+                "PENDING",
+                Instant.now(),
+                recipientOrNull(customerUserId, loanId),
+                "GENERIC_NOTIFICATION",
+                Map.of(
+                        "message", "Your EMI is due on " + dueDate + ".",
+                        "dueDate", dueDate.toString(),
+                        "amount", amount.toPlainString()));
+        return publishAndAwait(emiReminderTopic, reference, event);
     }
 
     public boolean loanOverdue(String reference, String customerUserId, String loanId, BigDecimal amount, LocalDate dueDate) {
+        DomainEvent event = new DomainEvent(
+                "loan-overdue",
+                reference,
+                customerUserId,
+                loanId,
+                amount,
+                "OVERDUE",
+                Instant.now(),
+                recipientOrNull(customerUserId, loanId),
+                "GENERIC_NOTIFICATION",
+                Map.of(
+                        "message", "Your EMI due on " + dueDate + " is overdue.",
+                        "dueDate", dueDate.toString(),
+                        "amount", amount.toPlainString()));
+        return publishAndAwait(loanOverdueTopic, reference, event);
+    }
+
+    public void loanStatusChanged(Loan loan) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("eventId", UUID.randomUUID().toString());
+        event.put("eventVersion", 1);
+        event.put("eventType", loanStatusChangedTopic);
+        event.put("occurredAt", Instant.now().toString());
+        event.put("actorUserId", loan.getCustomerUserId());
+        event.put("sourceService", "loan-service");
+        event.put("action", "LOAN_STATUS_CHANGED");
+        event.put("entityType", "LOAN");
+        event.put("referenceId", loan.getLoanId());
+        event.put("status", "SUCCESS");
+        event.put("severity", "INFO");
+        event.put("loanId", loan.getLoanId());
+        event.put("loanType", loan.getLoanType().name());
+        event.put("loanStatus", loan.getStatus().name());
+        kafka.send(loanStatusChangedTopic, loan.getLoanId(), event);
+    }
+
+    private String recipientOrNull(String customerUserId, String loanId) {
         try {
-            DomainEvent event = new DomainEvent(
-                    "loan-overdue",
-                    reference,
-                    customerUserId,
-                    loanId,
-                    amount,
-                    "OVERDUE",
-                    Instant.now(),
-                    recipients.email(customerUserId),
-                    "GENERIC_NOTIFICATION",
-                    Map.of(
-                            "message", "Your EMI due on " + dueDate + " is overdue.",
-                            "dueDate", dueDate.toString(),
-                            "amount", amount.toPlainString()));
-            return publishAndAwait(loanOverdueTopic, reference, event);
+            return recipients.email(customerUserId);
         } catch (RuntimeException exception) {
-            log.warn("Loan overdue notification recipient lookup failed for loan {}", loanId);
-            return false;
+            log.warn("Loan event has no notification recipient for loan {}", loanId);
+            return null;
         }
     }
 

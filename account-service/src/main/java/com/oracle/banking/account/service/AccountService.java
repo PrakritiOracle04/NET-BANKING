@@ -20,6 +20,7 @@ import com.oracle.banking.account.exception.AccountExceptions.InsufficientBalanc
 import com.oracle.banking.account.exception.AccountExceptions.NotFound;
 import com.oracle.banking.account.repository.AccountRepository;
 import com.oracle.banking.account.repository.AccountMovementRepository;
+import com.oracle.banking.account.event.AccountAuditPublisher;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
@@ -42,14 +43,17 @@ public class AccountService {
     private final AccountMovementRepository movements;
     private final RestClient transactionClient;
     private final String internalApiKey;
+    private final AccountAuditPublisher auditEvents;
 
     public AccountService(AccountRepository repository, AccountMovementRepository movements, RestClient.Builder restClientBuilder,
             @Value("${services.transaction-service-url}") String transactionServiceUrl,
-            @Value("${services.internal-api-key}") String internalApiKey) {
+            @Value("${services.internal-api-key}") String internalApiKey,
+            AccountAuditPublisher auditEvents) {
         this.repository = repository;
         this.movements = movements;
         this.transactionClient = restClientBuilder.baseUrl(transactionServiceUrl).build();
         this.internalApiKey = internalApiKey;
+        this.auditEvents = auditEvents;
     }
 
     public List<AccountSummaryResponse> accountsFor(String userId, boolean admin, String customerUserId) {
@@ -131,7 +135,9 @@ public class AccountService {
         Account account = find(accountId);
         account.setStatus(request.status());
         log.info("Updated account {} status to {}", accountId, request.status());
-        return AccountDetailsResponse.from(repository.save(account));
+        Account saved = repository.save(account);
+        auditEvents.statusChanged(saved);
+        return AccountDetailsResponse.from(saved);
     }
 
     public InternalAccountValidationResponse validate(String accountId) {

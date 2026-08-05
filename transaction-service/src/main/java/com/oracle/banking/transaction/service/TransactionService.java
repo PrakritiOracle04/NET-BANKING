@@ -12,6 +12,7 @@ import com.oracle.banking.transaction.exception.TransactionExceptions.Duplicate;
 import com.oracle.banking.transaction.exception.TransactionExceptions.Forbidden;
 import com.oracle.banking.transaction.exception.TransactionExceptions.NotFound;
 import com.oracle.banking.transaction.repository.BankTransactionRepository;
+import com.oracle.banking.transaction.event.TransactionAuditPublisher;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -34,9 +35,11 @@ public class TransactionService {
     private static final Set<String> SORT_FIELDS = Set.of("transactionDate", "amount", "status", "transactionType", "referenceNumber");
 
     private final BankTransactionRepository repository;
+    private final TransactionAuditPublisher auditEvents;
 
-    public TransactionService(BankTransactionRepository repository) {
+    public TransactionService(BankTransactionRepository repository, TransactionAuditPublisher auditEvents) {
         this.repository = repository;
+        this.auditEvents = auditEvents;
     }
 
     public Page<TransactionResponse> list(String userId, boolean admin, int page, int size) {
@@ -76,6 +79,26 @@ public class TransactionService {
                 status, minAmount, maxAmount, referenceNumber, fromDate, toDate);
         return repository.findAll(spec, pageable(page, size, sortBy, direction)).map(TransactionResponse::from);
     }
+
+    public Page<TransactionResponse> operationsSearch(
+            String customerUserId,
+            String accountId,
+            TransactionType transactionType,
+            TransactionStatus status,
+            Instant fromDate,
+            Instant toDate,
+            int page,
+            int size) {
+        Specification<BankTransaction> spec = searchSpec(
+                customerUserId, accountId, null, transactionType, status,
+                null, null, null, fromDate, toDate);
+        return repository.findAll(spec, pageable(page, size, "transactionDate", "desc"))
+                .map(TransactionResponse::from);
+    }
+
+    public long count() { return repository.count(); }
+
+    public long countByStatus(TransactionStatus status) { return repository.countByStatus(status); }
 
     public StatementResponse statement(String userId, boolean admin, String accountId, Instant fromDate, Instant toDate) {
         if (accountId == null || accountId.isBlank()) {
@@ -130,11 +153,14 @@ public class TransactionService {
     public TransactionResponse reverse(String referenceNumber) {
         BankTransaction transaction = repository.findByReferenceNumber(referenceNumber)
                 .orElseThrow(() -> new NotFound("Transaction not found"));
-        if (transaction.getStatus() != TransactionStatus.REVERSED) {
+        boolean changed = transaction.getStatus() != TransactionStatus.REVERSED;
+        if (changed) {
             transaction.setStatus(TransactionStatus.REVERSED);
             log.info("Reversed transaction {} reference {}", transaction.getTransactionId(), referenceNumber);
         }
-        return TransactionResponse.from(repository.save(transaction));
+        BankTransaction saved = repository.save(transaction);
+        if (changed) auditEvents.reversed(saved);
+        return TransactionResponse.from(saved);
     }
 
     private Specification<BankTransaction> searchSpec(

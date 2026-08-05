@@ -50,6 +50,9 @@ services:
       <<: *database-pool
       CUSTOMER_DB_URL: ${CUSTOMER_DB_URL}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    depends_on:
+      - kafka
 
   twofa-service:
     build:
@@ -85,6 +88,9 @@ services:
     environment:
       <<: *database-pool
       TRANSACTION_DB_URL: ${TRANSACTION_DB_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    depends_on:
+      - kafka
 
   account-service:
     build:
@@ -97,8 +103,10 @@ services:
       <<: *database-pool
       ACCOUNT_DB_URL: ${ACCOUNT_DB_URL}
       TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - transaction-service
+      - kafka
 
   beneficiary-service:
     build:
@@ -111,8 +119,10 @@ services:
       <<: *database-pool
       BENEFICIARY_DB_URL: ${BENEFICIARY_DB_URL}
       ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - account-service
+      - kafka
 
   billpayment-service:
     build:
@@ -239,6 +249,73 @@ services:
       - twofa-service
       - kafka
 
+  audit-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: audit-service
+    env_file: .env
+    environment:
+      <<: *database-pool
+      AUDIT_DB_URL: ${AUDIT_DB_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    depends_on:
+      - kafka
+
+  report-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: report-service
+    env_file: .env
+    environment:
+      <<: *database-pool
+      REPORT_DB_URL: ${REPORT_DB_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      REPORT_STORAGE_PATH: ${REPORT_STORAGE_PATH}
+    depends_on:
+      - auth-service
+      - customer-service
+      - branch-service
+      - account-service
+      - beneficiary-service
+      - transaction-service
+      - banking-workflow-service
+      - billpayment-service
+      - card-service
+      - loan-service
+      - banking-scheduler-service
+      - audit-service
+      - kafka
+    volumes:
+      - report-data:${REPORT_STORAGE_PATH}
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SERVICE: admin-service
+    env_file: .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    depends_on:
+      - auth-service
+      - customer-service
+      - branch-service
+      - account-service
+      - beneficiary-service
+      - transaction-service
+      - banking-workflow-service
+      - billpayment-service
+      - card-service
+      - loan-service
+      - banking-scheduler-service
+      - audit-service
+      - kafka
+
   api-gateway:
     build:
       context: .
@@ -260,6 +337,9 @@ services:
       CARD_SERVICE_URL: ${CARD_SERVICE_URL}
       LOAN_SERVICE_URL: ${LOAN_SERVICE_URL}
       BANKING_SCHEDULER_SERVICE_URL: ${BANKING_SCHEDULER_SERVICE_URL}
+      AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL}
+      REPORT_SERVICE_URL: ${REPORT_SERVICE_URL}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
     depends_on:
       - auth-service
       - twofa-service
@@ -274,6 +354,9 @@ services:
       - card-service
       - loan-service
       - banking-scheduler-service
+      - audit-service
+      - report-service
+      - admin-service
     ports:
       - "8080:8080"
 
@@ -282,3 +365,5 @@ volumes:
     name: net-banking-kafka-data
   kafka-ui-data:
     name: net-banking-kafka-ui-data
+  report-data:
+    name: net-banking-report-data

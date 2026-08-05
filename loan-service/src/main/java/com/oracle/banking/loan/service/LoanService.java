@@ -148,7 +148,9 @@ public class LoanService {
             throw new BadRequest("Invalid loan status transition");
         }
         loan.updateStatus(target);
-        return LoanDetailsResponse.from(loans.save(loan));
+        Loan saved = loans.save(loan);
+        events.loanStatusChanged(saved);
+        return LoanDetailsResponse.from(saved);
     }
 
     public EmiCalculationResponse calculate(CalculateEmiRequest request) {
@@ -264,7 +266,9 @@ public class LoanService {
         for (EmiSchedule row : rows) {
             processed++;
             row.markOverdue();
+            LoanStatus previousStatus = row.getLoan().getStatus();
             row.getLoan().recalculateStatus(true);
+            if (previousStatus != row.getLoan().getStatus()) events.loanStatusChanged(row.getLoan());
             if (row.getOverdueNotifiedAt() == null) {
                 String reference = "emi:" + row.getEmiScheduleId() + ":overdue";
                 if (events.loanOverdue(

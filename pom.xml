@@ -33,6 +33,9 @@
         <module>card-service</module>
         <module>loan-service</module>
         <module>banking-scheduler-service</module>
+        <module>audit-service</module>
+        <module>report-service</module>
+        <module>admin-service</module>
     </modules>
 
     <properties>

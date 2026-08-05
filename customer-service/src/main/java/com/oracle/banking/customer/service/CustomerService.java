@@ -15,6 +15,7 @@ import com.oracle.banking.customer.exception.CustomerExceptions.Duplicate;
 import com.oracle.banking.customer.exception.CustomerExceptions.NotFound;
 import com.oracle.banking.customer.repository.CustomerKycRepository;
 import com.oracle.banking.customer.repository.CustomerProfileRepository;
+import com.oracle.banking.customer.event.CustomerAuditPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +24,14 @@ public class CustomerService {
     private final CustomerProfileRepository profiles;
     private final CustomerKycRepository kycRecords;
     private final KycCrypto crypto;
+    private final CustomerAuditPublisher auditEvents;
 
-    public CustomerService(CustomerProfileRepository profiles, CustomerKycRepository kycRecords, KycCrypto crypto) {
+    public CustomerService(CustomerProfileRepository profiles, CustomerKycRepository kycRecords, KycCrypto crypto,
+            CustomerAuditPublisher auditEvents) {
         this.profiles = profiles;
         this.kycRecords = kycRecords;
         this.crypto = crypto;
+        this.auditEvents = auditEvents;
     }
 
     @Transactional
@@ -75,7 +79,9 @@ public class CustomerService {
                 crypto.encrypt(pan),
                 pan.substring(pan.length() - 4),
                 panHash);
-        return KycResponse.from(kycRecords.save(kyc));
+        CustomerKyc saved = kycRecords.save(kyc);
+        auditEvents.submitted(saved);
+        return KycResponse.from(saved);
     }
 
     public KycResponse ownKyc(String userId) {
@@ -95,6 +101,7 @@ public class CustomerService {
         } else {
             throw new BadRequest("KYC status can only be changed to VERIFIED or REJECTED");
         }
+        auditEvents.statusChanged(kyc);
         return KycResponse.from(kyc);
     }
 

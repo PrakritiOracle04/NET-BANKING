@@ -8,16 +8,12 @@ spring:
     url: ${SCHEDULER_DB_URL}
     username: ${SCHEDULER_DB_USERNAME}
     password: ${SCHEDULER_DB_PASSWORD}
-    url: ${SCHEDULER_DB_URL}
-    username: ${SCHEDULER_DB_USERNAME}
-    password: ${SCHEDULER_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -27,14 +23,9 @@ spring:
         request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
         delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
         retries: ${KAFKA_PRODUCER_RETRIES}
-        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS}
-        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS}
-        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS}
-        retries: ${KAFKA_PRODUCER_RETRIES}
 
 security:
   jwt:
-    secret: ${JWT_SECRET}
     secret: ${JWT_SECRET}
 
 services:
@@ -44,24 +35,21 @@ services:
 
 banking:
   business-timezone: ${BANKING_BUSINESS_TIMEZONE}
-  business-timezone: ${BANKING_BUSINESS_TIMEZONE}
   schedules:
     scan-delay-ms: ${SCHEDULE_SCAN_DELAY_MS}
     default-max-retries: ${SCHEDULE_DEFAULT_MAX_RETRIES}
-    scan-delay-ms: ${SCHEDULE_SCAN_DELAY_MS}
-    default-max-retries: ${SCHEDULE_DEFAULT_MAX_RETRIES}
   system-schedules:
-    emi-reminder-time: ${EMI_REMINDER_SCAN_TIME}
-    loan-overdue-time: ${LOAN_OVERDUE_SCAN_TIME}
     emi-reminder-time: ${EMI_REMINDER_SCAN_TIME}
     loan-overdue-time: ${LOAN_OVERDUE_SCAN_TIME}
   events:
     schedule-triggered-topic: schedule-triggered
     schedule-completed-topic: schedule-completed
     schedule-failed-topic: schedule-failed
-    schedule-triggered-topic: schedule-triggered
-    schedule-completed-topic: schedule-completed
-    schedule-failed-topic: schedule-failed
+    schedule-created-topic: schedule-created
+    schedule-updated-topic: schedule-updated
+    schedule-paused-topic: schedule-paused
+    schedule-resumed-topic: schedule-resumed
+    schedule-cancelled-topic: schedule-cancelled
 
 springdoc:
   swagger-ui:

@@ -1,5 +1,6 @@
 package com.oracle.banking.card.event;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +40,15 @@ public class CardKafkaPublisher {
             log.warn("Unsupported card notification event {}", event.eventType());
             return;
         }
-        Map<String, Object> payload = Map.of(
-                "eventType", event.eventType(),
-                "referenceNumber", event.referenceNumber(),
-                "recipient", event.recipient(),
-                "templateName", event.templateName(),
-                "variables", event.variables());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("eventType", event.eventType());
+        payload.put("referenceNumber", event.referenceNumber());
+        payload.put("actorUserId", event.actorUserId());
+        payload.put("status", event.status());
+        payload.put("occurredAt", event.occurredAt());
+        payload.put("recipient", event.recipient());
+        payload.put("templateName", event.templateName());
+        payload.put("variables", event.variables());
         try {
             kafka.send(topic, event.referenceNumber(), payload).whenComplete((result, error) -> {
                 if (error == null) log.info("Published card event {} for {}", event.eventType(), event.referenceNumber());

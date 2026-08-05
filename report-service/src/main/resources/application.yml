@@ -1,0 +1,65 @@
+server:
+  port: 8095
+
+spring:
+  application:
+    name: report-service
+  datasource:
+    url: ${REPORT_DB_URL}
+    username: ${REPORT_DB_USERNAME}
+    password: ${REPORT_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+
+services:
+  internal-api-key: ${INTERNAL_API_KEY}
+  auth-service-url: ${AUTH_SERVICE_URL}
+  customer-service-url: ${CUSTOMER_SERVICE_URL}
+  branch-service-url: ${BRANCH_SERVICE_URL}
+  account-service-url: ${ACCOUNT_SERVICE_URL}
+  beneficiary-service-url: ${BENEFICIARY_SERVICE_URL}
+  transaction-service-url: ${TRANSACTION_SERVICE_URL}
+  workflow-service-url: ${BANKING_WORKFLOW_SERVICE_URL}
+  billpayment-service-url: ${BILLPAYMENT_SERVICE_URL}
+  card-service-url: ${CARD_SERVICE_URL}
+  loan-service-url: ${LOAN_SERVICE_URL}
+  scheduler-service-url: ${BANKING_SCHEDULER_SERVICE_URL}
+  audit-service-url: ${AUDIT_SERVICE_URL}
+
+report:
+  storage:
+    path: ${REPORT_STORAGE_PATH}
+  retention-hours: ${REPORT_RETENTION_HOURS}
+  limits:
+    max-rows: ${REPORT_MAX_ROWS}
+    max-range-days: ${REPORT_MAX_RANGE_DAYS}
+    max-file-size-bytes: ${REPORT_MAX_FILE_SIZE_BYTES}
+  client:
+    connect-timeout-ms: ${REPORT_CLIENT_CONNECT_TIMEOUT_MS}
+    read-timeout-ms: ${REPORT_CLIENT_READ_TIMEOUT_MS}
+  worker:
+    poll-delay-ms: ${REPORT_WORKER_POLL_DELAY_MS}
+    recovery-delay-ms: ${REPORT_WORKER_RECOVERY_DELAY_MS}
+    job-timeout-minutes: ${REPORT_JOB_TIMEOUT_MINUTES}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

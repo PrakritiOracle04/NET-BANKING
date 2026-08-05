@@ -63,6 +63,8 @@ public class AppUser {
     public Role getRole() { return role; }
     public String getUsername() { return username; }
     public String getEmail() { return email; }
+    public String getPhone() { return phone; }
     public String getPasswordHash() { return passwordHash; }
     public String getStatus() { return status; }
+    public Instant getCreatedAt() { return createdAt; }
 }

@@ -72,6 +72,18 @@ spring:
               uri: ${BANKING_SCHEDULER_SERVICE_URL}
               predicates:
                 - Path=/api/schedules/**
+            - id: audit-service
+              uri: ${AUDIT_SERVICE_URL}
+              predicates:
+                - Path=/api/audit/**
+            - id: report-service
+              uri: ${REPORT_SERVICE_URL}
+              predicates:
+                - Path=/api/reports/**
+            - id: admin-service
+              uri: ${ADMIN_SERVICE_URL}
+              predicates:
+                - Path=/api/admin/**
 
 management:
   endpoints:

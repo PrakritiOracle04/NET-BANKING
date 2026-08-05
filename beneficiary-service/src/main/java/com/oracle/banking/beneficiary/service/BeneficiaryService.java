@@ -14,6 +14,7 @@ import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.BadRequest
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.Duplicate;
 import com.oracle.banking.beneficiary.exception.BeneficiaryExceptions.NotFound;
 import com.oracle.banking.beneficiary.repository.BeneficiaryRepository;
+import com.oracle.banking.beneficiary.event.BeneficiaryAuditPublisher;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import java.util.List;
 import org.slf4j.Logger;
@@ -32,15 +33,18 @@ public class BeneficiaryService {
     private final BeneficiaryRepository repository;
     private final RestClient accountClient;
     private final String internalApiKey;
+    private final BeneficiaryAuditPublisher auditEvents;
 
     public BeneficiaryService(
             BeneficiaryRepository repository,
             RestClient.Builder restClientBuilder,
             @Value("${services.account-service-url}") String accountServiceUrl,
-            @Value("${services.internal-api-key}") String internalApiKey) {
+            @Value("${services.internal-api-key}") String internalApiKey,
+            BeneficiaryAuditPublisher auditEvents) {
         this.repository = repository;
         this.accountClient = restClientBuilder.baseUrl(accountServiceUrl).build();
         this.internalApiKey = internalApiKey;
+        this.auditEvents = auditEvents;
     }
 
     public List<BeneficiarySummaryResponse> list(String userId, boolean favouritesOnly) {
@@ -71,6 +75,7 @@ public class BeneficiaryService {
         beneficiary.setCustomerUserId(userId);
         beneficiary.setStatus(BeneficiaryStatus.PENDING);
         Beneficiary saved = repository.save(beneficiary);
+        auditEvents.publish("CREATED", saved);
         log.info("Created beneficiary {} for customer user ID {}", saved.getBeneficiaryId(), userId);
         return BeneficiaryResponse.from(saved);
     }
@@ -86,7 +91,9 @@ public class BeneficiaryService {
         apply(beneficiary, request);
         beneficiary.setStatus(BeneficiaryStatus.PENDING);
         log.info("Updated beneficiary {} for customer user ID {}", id, userId);
-        return BeneficiaryResponse.from(repository.save(beneficiary));
+        Beneficiary saved = repository.save(beneficiary);
+        auditEvents.publish("UPDATED", saved);
+        return BeneficiaryResponse.from(saved);
     }
 
     @Transactional
@@ -94,6 +101,7 @@ public class BeneficiaryService {
         Beneficiary beneficiary = repository.findByBeneficiaryIdAndCustomerUserId(id, userId)
                 .orElseThrow(() -> new NotFound("Beneficiary not found"));
         repository.delete(beneficiary);
+        auditEvents.publish("DELETED", beneficiary);
         log.info("Deleted beneficiary {} for customer user ID {}", id, userId);
     }
 
@@ -102,7 +110,9 @@ public class BeneficiaryService {
         Beneficiary beneficiary = find(id);
         beneficiary.setStatus(request.status());
         log.info("Updated beneficiary {} status to {}", id, request.status());
-        return BeneficiaryResponse.from(repository.save(beneficiary));
+        Beneficiary saved = repository.save(beneficiary);
+        auditEvents.publish("STATUS_CHANGED", saved);
+        return BeneficiaryResponse.from(saved);
     }
 
     public BeneficiaryVerificationResponse verifyForTransfer(VerifyBeneficiaryRequest request) {
