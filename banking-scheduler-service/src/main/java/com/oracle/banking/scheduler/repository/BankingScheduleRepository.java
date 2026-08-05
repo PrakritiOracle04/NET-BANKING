@@ -7,8 +7,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface BankingScheduleRepository extends JpaRepository<BankingSchedule, String> {
+public interface BankingScheduleRepository extends JpaRepository<BankingSchedule, String>, JpaSpecificationExecutor<BankingSchedule> {
     List<BankingSchedule> findTop50ByStatusAndNextExecutionAtLessThanEqualOrderByNextExecutionAtAsc(
             ScheduleStatus status,
             Instant now);
@@ -19,4 +20,6 @@ public interface BankingScheduleRepository extends JpaRepository<BankingSchedule
     Optional<BankingSchedule> findFirstByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(ScheduleOperationType operationType);
     List<BankingSchedule> findByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(ScheduleOperationType operationType);
     Optional<BankingSchedule> findBySystemKey(String systemKey);
+    long countByStatus(ScheduleStatus status);
+    long countBySystemOwnedTrue();
 }

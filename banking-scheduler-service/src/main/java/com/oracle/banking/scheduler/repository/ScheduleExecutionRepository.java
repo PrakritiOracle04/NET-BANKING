@@ -7,9 +7,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ScheduleExecutionRepository extends JpaRepository<ScheduleExecution, String> {
+public interface ScheduleExecutionRepository extends JpaRepository<ScheduleExecution, String>, JpaSpecificationExecutor<ScheduleExecution> {
     Optional<ScheduleExecution> findByScheduleAndScheduledFor(BankingSchedule schedule, Instant scheduledFor);
     List<ScheduleExecution> findByScheduleOrderByScheduledForDesc(BankingSchedule schedule);
     List<ScheduleExecution> findTop50ByStatusAndNextRetryAtLessThanEqualOrderByNextRetryAtAsc(ExecutionStatus status, Instant now);
+    long countByStatus(ExecutionStatus status);
 }
