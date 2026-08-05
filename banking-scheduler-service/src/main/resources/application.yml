@@ -45,6 +45,11 @@ banking:
     schedule-triggered-topic: schedule-triggered
     schedule-completed-topic: schedule-completed
     schedule-failed-topic: schedule-failed
+    schedule-created-topic: schedule-created
+    schedule-updated-topic: schedule-updated
+    schedule-paused-topic: schedule-paused
+    schedule-resumed-topic: schedule-resumed
+    schedule-cancelled-topic: schedule-cancelled
 
 springdoc:
   swagger-ui:

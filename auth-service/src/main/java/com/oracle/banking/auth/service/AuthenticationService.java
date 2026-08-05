@@ -9,6 +9,7 @@ import com.oracle.banking.auth.dto.UserResponse;
 import com.oracle.banking.auth.entity.AppUser;
 import com.oracle.banking.auth.entity.Role;
 import com.oracle.banking.auth.event.AuthNotificationEventPublisher;
+import com.oracle.banking.auth.event.AuthAuditPublisher;
 import com.oracle.banking.auth.exception.BadCredentialsException;
 import com.oracle.banking.auth.exception.BadRequestException;
 import com.oracle.banking.auth.exception.DuplicateResourceException;
@@ -36,11 +37,13 @@ public class AuthenticationService {
     private final TwoFactorClient twoFactorClient;
     private final SessionService sessionService;
     private final AuthNotificationEventPublisher notificationEvents;
+    private final AuthAuditPublisher auditEvents;
 
     public AuthenticationService(AppUserRepository users, RoleRepository roles,
                                  PasswordEncoder passwordEncoder, CustomerClient customerClient,
                                  TwoFactorClient twoFactorClient, SessionService sessionService,
-                                 AuthNotificationEventPublisher notificationEvents) {
+                                 AuthNotificationEventPublisher notificationEvents,
+                                 AuthAuditPublisher auditEvents) {
         this.users = users;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
@@ -48,6 +51,7 @@ public class AuthenticationService {
         this.twoFactorClient = twoFactorClient;
         this.sessionService = sessionService;
         this.notificationEvents = notificationEvents;
+        this.auditEvents = auditEvents;
     }
 
     @Transactional
@@ -69,31 +73,39 @@ public class AuthenticationService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        AppUser user = users.findByUsernameOrEmail(request.username(), request.username())
-                .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
-        if (!"ACTIVE".equals(user.getStatus()) || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid username or password");
+        AppUser user = null;
+        try {
+            user = users.findByUsernameOrEmail(request.username(), request.username())
+                    .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+            if (!"ACTIVE".equals(user.getStatus()) || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                throw new BadCredentialsException("Invalid username or password");
+            }
+            boolean twoFactorEnabled = twoFactorClient.isEnabled(user.getUserId());
+            if (twoFactorEnabled) {
+                if (request.otpCode() == null || request.otpCode().isBlank()) throw new TwoFactorException("OTP code is required");
+                twoFactorClient.verify(user.getUserId(), request.otpCode());
+            }
+            IssuedToken token = sessionService.issue(user);
+            notificationEvents.loginSucceeded(user);
+            log.info("Login successful for user {}", user.getUserId());
+            return new LoginResponse(token.value(), "Bearer", token.expiresAt(), user.getUsername(),
+                    user.getRole().getRoleName(), twoFactorEnabled);
+        } catch (BadCredentialsException | TwoFactorException ex) {
+            auditEvents.authenticationFailed(user == null ? null : user.getUserId());
+            throw ex;
         }
-        boolean twoFactorEnabled = twoFactorClient.isEnabled(user.getUserId());
-        if (twoFactorEnabled) {
-            if (request.otpCode() == null || request.otpCode().isBlank()) throw new TwoFactorException("OTP code is required");
-            twoFactorClient.verify(user.getUserId(), request.otpCode());
-        }
-        IssuedToken token = sessionService.issue(user);
-        notificationEvents.loginSucceeded(user);
-        log.info("Login successful for user {}", user.getUserId());
-        return new LoginResponse(token.value(), "Bearer", token.expiresAt(), user.getUsername(),
-                user.getRole().getRoleName(), twoFactorEnabled);
     }
 
     @Transactional
     public void logout(String userId, String sessionId) {
         sessionService.invalidateCurrent(userId, sessionId);
+        auditEvents.logout(userId);
         log.info("Current session logout completed for user {}", userId);
     }
 
     public void logoutAll(String userId) {
         int invalidated = sessionService.invalidateAll(userId);
+        auditEvents.logoutAll(userId, invalidated);
         log.info("Logout-all completed for user {} across {} active sessions", userId, invalidated);
     }
 

@@ -108,7 +108,9 @@ public class BankingSchedulerService {
                 recurrence.requestedDay(startAt, timezone, request.scheduleType()),
                 request.maxRetries() == null ? defaultMaxRetries : request.maxRetries(),
                 false);
-        return ScheduleResponse.from(schedules.save(schedule));
+        BankingSchedule saved = schedules.save(schedule);
+        events.lifecycle("CREATED", saved);
+        return ScheduleResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -159,7 +161,9 @@ public class BankingSchedulerService {
                 request.endAt(),
                 recurrence.requestedDay(request.startAt(), request.timezone(), request.scheduleType()),
                 request.maxRetries() == null ? defaultMaxRetries : request.maxRetries());
-        return ScheduleResponse.from(schedules.save(schedule));
+        BankingSchedule saved = schedules.save(schedule);
+        events.lifecycle("UPDATED", saved);
+        return ScheduleResponse.from(saved);
     }
 
     @Transactional
@@ -167,7 +171,9 @@ public class BankingSchedulerService {
         BankingSchedule schedule = ownedMutable(id, userId);
         if (schedule.getStatus() != ScheduleStatus.ACTIVE) throw new Conflict("Only active schedules can be paused");
         schedule.pause();
-        return ScheduleResponse.from(schedules.save(schedule));
+        BankingSchedule saved = schedules.save(schedule);
+        events.lifecycle("PAUSED", saved);
+        return ScheduleResponse.from(saved);
     }
 
     @Transactional
@@ -178,7 +184,9 @@ public class BankingSchedulerService {
                 ? Instant.now()
                 : schedule.getNextExecutionAt();
         schedule.resume(next);
-        return ScheduleResponse.from(schedules.save(schedule));
+        BankingSchedule saved = schedules.save(schedule);
+        events.lifecycle("RESUMED", saved);
+        return ScheduleResponse.from(saved);
     }
 
     @Transactional
@@ -186,6 +194,7 @@ public class BankingSchedulerService {
         BankingSchedule schedule = ownedMutable(id, userId);
         schedule.cancel();
         schedules.save(schedule);
+        events.lifecycle("CANCELLED", schedule);
     }
 
     @Scheduled(fixedDelayString = "${banking.schedules.scan-delay-ms}")

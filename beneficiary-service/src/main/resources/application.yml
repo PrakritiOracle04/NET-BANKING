@@ -13,6 +13,11 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 security:
   jwt:
@@ -21,6 +26,13 @@ security:
 services:
   internal-api-key: ${INTERNAL_API_KEY}
   account-service-url: ${ACCOUNT_SERVICE_URL}
+
+banking:
+  events:
+    beneficiary-created-topic: beneficiary-created
+    beneficiary-updated-topic: beneficiary-updated
+    beneficiary-deleted-topic: beneficiary-deleted
+    beneficiary-status-changed-topic: beneficiary-status-changed
 
 springdoc:
   swagger-ui:

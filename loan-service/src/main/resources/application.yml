@@ -38,6 +38,7 @@ loan:
     loan-created-topic: loan-created
     emi-reminder-topic: emi-reminder
     loan-overdue-topic: loan-overdue
+    loan-status-changed-topic: loan-status-changed
   maintenance:
     emi-reminder-days-before: ${EMI_REMINDER_DAYS_BEFORE}
 

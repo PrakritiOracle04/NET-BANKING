@@ -50,6 +50,10 @@ banking:
     bill-payment-failed-topic: bill-payment-failed
     loan-payment-success-topic: loan-payment-success
     loan-payment-failed-topic: loan-payment-failed
+    workflow-completed-topic: workflow-completed
+    workflow-failed-topic: workflow-failed
+    workflow-compensated-topic: workflow-compensated
+    account-opened-topic: account-opened
 
 springdoc:
   swagger-ui:

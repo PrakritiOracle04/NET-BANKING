@@ -25,6 +25,9 @@ banking:
   events:
     registration-success-topic: registration-success
     login-alert-topic: login-alert
+    authentication-failed-topic: authentication-failed
+    session-logout-topic: session-logout
+    session-logout-all-topic: session-logout-all
 
 security:
   jwt:

@@ -146,6 +146,7 @@ public class BankingWorkflowService {
             completeBillPayment(saga.getBillPaymentId(), transaction.transactionId(), transactionReference);
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
 
             events.billPaymentSucceeded(billPaymentEvent(
                     "bill-payment-success",
@@ -241,6 +242,7 @@ public class BankingWorkflowService {
             completeLoanRepayment(saga.getLoanRepaymentId(), transaction.transactionId(), transactionReference);
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
 
             events.loanPaymentSucceeded(loanPaymentEvent(
                     "loan-payment-success",
@@ -288,6 +290,8 @@ public class BankingWorkflowService {
             saga.accountCreated(account.accountId(), account.accountNumber(), account.primaryAccount());
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
+            events.accountOpened(saga);
             return new OpenAccountResponse(
                     saga.getReferenceNumber(),
                     account.accountId(),
@@ -299,6 +303,7 @@ public class BankingWorkflowService {
         } catch (RuntimeException exception) {
             saga.fail(exception.getMessage());
             save(saga);
+            events.workflowFailed(saga);
             throw exception;
         }
     }
@@ -323,6 +328,7 @@ public class BankingWorkflowService {
             saga.transactionsRecorded();
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
             events.accountCredited(event("account-credited", saga, account.accountId()));
             events.transactionCreated(event("transaction-created", saga, account.accountId()));
             return depositResponse(saga);
@@ -352,6 +358,7 @@ public class BankingWorkflowService {
             saga.transactionsRecorded();
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
             events.accountDebited(event("account-debited", saga, account.accountId()));
             events.transactionCreated(event("transaction-created", saga, account.accountId()));
             return withdrawResponse(saga);
@@ -399,6 +406,7 @@ public class BankingWorkflowService {
             saga.transactionsRecorded();
             saga.complete();
             save(saga);
+            events.workflowCompleted(saga);
 
             events.accountDebited(event("account-debited", saga, source.accountId()));
             events.accountCredited(event("account-credited", saga, destination.accountId()));
@@ -826,6 +834,7 @@ public class BankingWorkflowService {
         if (!saga.hasMutation()) {
             saga.fail(cause.getMessage());
             save(saga);
+            events.workflowFailed(saga);
             return cause;
         }
         if (!compensate(saga)) {
@@ -864,6 +873,7 @@ public class BankingWorkflowService {
             saga.compensationPending("One or more compensation steps failed");
         }
         save(saga);
+        events.workflowCompensated(saga);
         return successful;
     }
 

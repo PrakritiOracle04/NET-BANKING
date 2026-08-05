@@ -6,6 +6,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,7 @@ public class LoanEventPublisher {
     private final String loanCreatedTopic;
     private final String emiReminderTopic;
     private final String loanOverdueTopic;
+    private final String loanStatusChangedTopic;
     private final NotificationRecipientClient recipients;
 
     public LoanEventPublisher(
@@ -27,11 +30,13 @@ public class LoanEventPublisher {
             @Value("${loan.events.loan-created-topic}") String loanCreatedTopic,
             @Value("${loan.events.emi-reminder-topic}") String emiReminderTopic,
             @Value("${loan.events.loan-overdue-topic}") String loanOverdueTopic,
+            @Value("${loan.events.loan-status-changed-topic}") String loanStatusChangedTopic,
             NotificationRecipientClient recipients) {
         this.kafka = kafka;
         this.loanCreatedTopic = loanCreatedTopic;
         this.emiReminderTopic = emiReminderTopic;
         this.loanOverdueTopic = loanOverdueTopic;
+        this.loanStatusChangedTopic = loanStatusChangedTopic;
         this.recipients = recipients;
     }
 
@@ -89,6 +94,25 @@ public class LoanEventPublisher {
                         "dueDate", dueDate.toString(),
                         "amount", amount.toPlainString()));
         return publishAndAwait(loanOverdueTopic, reference, event);
+    }
+
+    public void loanStatusChanged(Loan loan) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("eventId", UUID.randomUUID().toString());
+        event.put("eventVersion", 1);
+        event.put("eventType", loanStatusChangedTopic);
+        event.put("occurredAt", Instant.now().toString());
+        event.put("actorUserId", loan.getCustomerUserId());
+        event.put("sourceService", "loan-service");
+        event.put("action", "LOAN_STATUS_CHANGED");
+        event.put("entityType", "LOAN");
+        event.put("referenceId", loan.getLoanId());
+        event.put("status", "SUCCESS");
+        event.put("severity", "INFO");
+        event.put("loanId", loan.getLoanId());
+        event.put("loanType", loan.getLoanType().name());
+        event.put("loanStatus", loan.getStatus().name());
+        kafka.send(loanStatusChangedTopic, loan.getLoanId(), event);
     }
 
     private String recipientOrNull(String customerUserId, String loanId) {
