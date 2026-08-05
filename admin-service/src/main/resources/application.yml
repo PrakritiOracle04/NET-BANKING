@@ -1,0 +1,25 @@
+server:
+  port: 8096
+
+spring:
+  application:
+    name: admin-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+
+services:
+  internal-api-key: ${INTERNAL_API_KEY}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
