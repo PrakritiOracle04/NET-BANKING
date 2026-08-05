@@ -130,6 +130,8 @@ public final class SchedulerDtos {
             String eventType,
             String referenceNumber,
             String scheduleId,
+            String actorUserId,
+            String operationType,
             Instant scheduledFor,
             String status,
             Instant occurredAt,

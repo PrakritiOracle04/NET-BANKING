@@ -280,6 +280,16 @@ public final class WorkflowDtos {
             Instant transactionDate
     ) {}
 
-    public record DomainEvent(String eventType, String referenceNumber, String accountId, BigDecimal amount, String status, Instant occurredAt,
-            String recipient, String templateName, Map<String, String> variables) {}
+    public record DomainEvent(
+            String eventType,
+            String referenceNumber,
+            String accountId,
+            String actorUserId,
+            String workflowType,
+            BigDecimal amount,
+            String status,
+            Instant occurredAt,
+            String recipient,
+            String templateName,
+            Map<String, String> variables) {}
 }

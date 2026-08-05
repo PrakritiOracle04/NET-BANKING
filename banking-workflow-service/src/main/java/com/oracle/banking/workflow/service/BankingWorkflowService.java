@@ -993,14 +993,18 @@ public class BankingWorkflowService {
     }
 
     private DomainEvent event(String eventType, WorkflowSaga saga, String accountId) {
-        try {
-            String email = recipients.email(saga.getCustomerUserId());
-            return new DomainEvent(eventType, saga.getReferenceNumber(), accountId, saga.getAmount(), "SUCCESS", Instant.now(), email,
-                    "GENERIC_NOTIFICATION", Map.of("message", "Your banking operation " + saga.getReferenceNumber() + " completed successfully."));
-        } catch (RuntimeException ex) {
-            log.warn("Notification event was skipped for workflow {}", saga.getReferenceNumber());
-            return null;
-        }
+        return new DomainEvent(
+                eventType,
+                saga.getReferenceNumber(),
+                accountId,
+                saga.getCustomerUserId(),
+                saga.getWorkflowType().name(),
+                saga.getAmount(),
+                "SUCCESS",
+                Instant.now(),
+                recipientOrNull(saga),
+                "GENERIC_NOTIFICATION",
+                Map.of("message", "Your banking operation " + saga.getReferenceNumber() + " completed successfully."));
     }
 
     private DepositResponse depositResponse(WorkflowSaga saga) {
@@ -1038,37 +1042,40 @@ public class BankingWorkflowService {
     }
 
     private DomainEvent billPaymentEvent(String eventType, WorkflowSaga saga, String message) {
-        try {
-            return new DomainEvent(
-                    eventType,
-                    saga.getReferenceNumber(),
-                    saga.getSourceAccountId(),
-                    saga.getAmount(),
-                    saga.getStatus().name(),
-                    Instant.now(),
-                    recipients.email(saga.getCustomerUserId()),
-                    "GENERIC_NOTIFICATION",
-                    Map.of("message", message));
-        } catch (RuntimeException exception) {
-            log.warn("Bill payment notification was skipped for workflow {}", saga.getReferenceNumber());
-            return null;
-        }
+        return new DomainEvent(
+                eventType,
+                saga.getReferenceNumber(),
+                saga.getSourceAccountId(),
+                saga.getCustomerUserId(),
+                saga.getWorkflowType().name(),
+                saga.getAmount(),
+                saga.getStatus().name(),
+                Instant.now(),
+                recipientOrNull(saga),
+                "GENERIC_NOTIFICATION",
+                Map.of("message", message));
     }
 
     private DomainEvent loanPaymentEvent(String eventType, WorkflowSaga saga, String message) {
+        return new DomainEvent(
+                eventType,
+                saga.getReferenceNumber(),
+                saga.getSourceAccountId(),
+                saga.getCustomerUserId(),
+                saga.getWorkflowType().name(),
+                saga.getAmount(),
+                saga.getStatus().name(),
+                Instant.now(),
+                recipientOrNull(saga),
+                "GENERIC_NOTIFICATION",
+                Map.of("message", message));
+    }
+
+    private String recipientOrNull(WorkflowSaga saga) {
         try {
-            return new DomainEvent(
-                    eventType,
-                    saga.getReferenceNumber(),
-                    saga.getSourceAccountId(),
-                    saga.getAmount(),
-                    saga.getStatus().name(),
-                    Instant.now(),
-                    recipients.email(saga.getCustomerUserId()),
-                    "GENERIC_NOTIFICATION",
-                    Map.of("message", message));
+            return recipients.email(saga.getCustomerUserId());
         } catch (RuntimeException exception) {
-            log.warn("Loan payment notification was skipped for workflow {}", saga.getReferenceNumber());
+            log.warn("Workflow event has no notification recipient for reference {}", saga.getReferenceNumber());
             return null;
         }
     }

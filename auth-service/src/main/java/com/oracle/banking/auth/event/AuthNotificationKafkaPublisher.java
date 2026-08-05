@@ -37,6 +37,9 @@ public class AuthNotificationKafkaPublisher {
         Map<String, Object> payload = Map.of(
                 "eventType", event.eventType(),
                 "referenceNumber", event.referenceNumber(),
+                "actorUserId", event.actorUserId(),
+                "status", event.status(),
+                "occurredAt", event.occurredAt(),
                 "recipient", event.recipient(),
                 "templateName", event.templateName(),
                 "variables", event.variables());

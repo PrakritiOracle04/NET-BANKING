@@ -413,6 +413,8 @@ public class BankingSchedulerService {
                 eventType,
                 execution.getWorkflowIdempotencyKey(),
                 schedule.getScheduleId(),
+                schedule.getCustomerUserId(),
+                schedule.getOperationType().name(),
                 execution.getScheduledFor(),
                 status,
                 Instant.now(),

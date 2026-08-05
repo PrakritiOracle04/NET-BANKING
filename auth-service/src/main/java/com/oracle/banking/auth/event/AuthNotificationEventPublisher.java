@@ -19,6 +19,9 @@ public class AuthNotificationEventPublisher {
         events.publishEvent(new AuthNotificationEvent(
                 "registration-success",
                 "REG-" + user.getUserId(),
+                user.getUserId(),
+                "SUCCESS",
+                Instant.now(),
                 user.getEmail(),
                 "WELCOME",
                 Map.of("customerName", user.getUsername())));
@@ -28,6 +31,9 @@ public class AuthNotificationEventPublisher {
         events.publishEvent(new AuthNotificationEvent(
                 "login-alert",
                 "LOGIN-" + UUID.randomUUID(),
+                user.getUserId(),
+                "SUCCESS",
+                Instant.now(),
                 user.getEmail(),
                 "LOGIN_ALERT",
                 Map.of(

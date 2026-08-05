@@ -2,6 +2,7 @@ package com.oracle.banking.card.event;
 
 import com.oracle.banking.card.entity.BankCard;
 import com.oracle.banking.shared.constants.SecurityConstants;
+import java.time.Instant;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,19 @@ public class CardEventPublisher {
     }
 
     public void publish(String eventType, BankCard card, String message) {
+        String recipient = recipientOrNull(card);
+        events.publishEvent(new CardNotificationEvent(
+                eventType,
+                "CARD-" + card.getCardId(),
+                card.getCustomerUserId(),
+                card.getStatus().name(),
+                Instant.now(),
+                recipient,
+                "GENERIC_NOTIFICATION",
+                Map.of("message", message, "lastFourDigits", card.getLastFourDigits())));
+    }
+
+    private String recipientOrNull(BankCard card) {
         try {
             Recipient recipient = authClient.get()
                     .uri("/internal/auth/users/{userId}/notification-recipient", card.getCustomerUserId())
@@ -37,17 +51,13 @@ public class CardEventPublisher {
                     .retrieve()
                     .body(Recipient.class);
             if (recipient == null || recipient.email() == null || recipient.email().isBlank()) {
-                log.warn("Card notification skipped because recipient was unavailable for card {}", card.getCardId());
-                return;
+                log.warn("Card event has no notification recipient for card {}", card.getCardId());
+                return null;
             }
-            events.publishEvent(new CardNotificationEvent(
-                    eventType,
-                    "CARD-" + card.getCardId(),
-                    recipient.email(),
-                    "GENERIC_NOTIFICATION",
-                    Map.of("message", message, "lastFourDigits", card.getLastFourDigits())));
+            return recipient.email();
         } catch (RestClientException exception) {
-            log.warn("Card notification skipped because Auth recipient lookup failed for card {}", card.getCardId());
+            log.warn("Card event has no notification recipient because Auth lookup failed for card {}", card.getCardId());
+            return null;
         }
     }
 
