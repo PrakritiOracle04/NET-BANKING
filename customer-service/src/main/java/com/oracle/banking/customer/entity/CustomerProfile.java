@@ -111,4 +111,6 @@ public class CustomerProfile {
     public String getCountry() { return country; }
     public String getPostalCode() { return postalCode; }
     public String getProfileStatus() { return profileStatus; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
