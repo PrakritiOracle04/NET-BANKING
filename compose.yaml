@@ -1,15 +1,15 @@
 x-database-pool: &database-pool
-  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: ${DB_POOL_MAX_SIZE:-4}
-  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: ${DB_POOL_MIN_IDLE:-1}
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: ${DB_POOL_MAX_SIZE}
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: ${DB_POOL_MIN_IDLE}
 
 services:
   kafka:
     image: ghcr.io/kubelauncher/kafka:3.9.0
     container_name: kafka
     environment:
-      KAFKA_LISTENERS: PLAINTEXT://:29092,EXTERNAL://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://host.containers.internal:9092
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
     ports:
       - "9092:9092"
     volumes:
@@ -28,9 +28,9 @@ services:
     image: ghcr.io/kafbat/kafka-ui:latest
     container_name: reverent_dewdney
     environment:
-      KAFKA_CLUSTERS_0_NAME: net-banking
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_UI_CLUSTER_NAME}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      DYNAMIC_CONFIG_ENABLED: ${KAFKA_UI_DYNAMIC_CONFIG_ENABLED}
     depends_on:
       - kafka
     ports:
@@ -48,7 +48,7 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      CUSTOMER_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      CUSTOMER_DB_URL: ${CUSTOMER_DB_URL}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
 
   twofa-service:
@@ -60,7 +60,7 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      TWOFA_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      TWOFA_DB_URL: ${TWOFA_DB_URL}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
 
   branch-service:
@@ -72,7 +72,7 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      BRANCH_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      BRANCH_DB_URL: ${BRANCH_DB_URL}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
 
   transaction-service:
@@ -84,7 +84,7 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      TRANSACTION_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      TRANSACTION_DB_URL: ${TRANSACTION_DB_URL}
 
   account-service:
     build:
@@ -95,8 +95,8 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      ACCOUNT_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      TRANSACTION_SERVICE_URL: http://transaction-service:8087
+      ACCOUNT_DB_URL: ${ACCOUNT_DB_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
     depends_on:
       - transaction-service
 
@@ -109,8 +109,8 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      BENEFICIARY_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      ACCOUNT_SERVICE_URL: http://account-service:8085
+      BENEFICIARY_DB_URL: ${BENEFICIARY_DB_URL}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL}
     depends_on:
       - account-service
 
@@ -123,7 +123,7 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      BILLPAYMENT_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
+      BILLPAYMENT_DB_URL: ${BILLPAYMENT_DB_URL}
 
   card-service:
     build:
@@ -134,10 +134,10 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      CARD_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      ACCOUNT_SERVICE_URL: http://account-service:8085
-      AUTH_SERVICE_URL: http://auth-service:8081
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      CARD_DB_URL: ${CARD_DB_URL}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - account-service
       - auth-service
@@ -152,9 +152,9 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      LOAN_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      AUTH_SERVICE_URL: http://auth-service:8081
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      LOAN_DB_URL: ${LOAN_DB_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - auth-service
@@ -169,16 +169,16 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      WORKFLOW_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      ACCOUNT_SERVICE_URL: http://account-service:8085
-      BENEFICIARY_SERVICE_URL: http://beneficiary-service:8086
-      TRANSACTION_SERVICE_URL: http://transaction-service:8087
-      AUTH_SERVICE_URL: http://auth-service:8081
-      CUSTOMER_SERVICE_URL: http://customer-service:8083
-      BRANCH_SERVICE_URL: http://branch-service:8084
-      BILLPAYMENT_SERVICE_URL: http://billpayment-service:8090
-      LOAN_SERVICE_URL: http://loan-service:8092
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      WORKFLOW_DB_URL: ${WORKFLOW_DB_URL}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL}
+      BENEFICIARY_SERVICE_URL: ${BENEFICIARY_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
+      BRANCH_SERVICE_URL: ${BRANCH_SERVICE_URL}
+      BILLPAYMENT_SERVICE_URL: ${BILLPAYMENT_SERVICE_URL}
+      LOAN_SERVICE_URL: ${LOAN_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - account-service
       - beneficiary-service
@@ -198,9 +198,9 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      SCHEDULER_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      BANKING_WORKFLOW_SERVICE_URL: http://banking-workflow-service:8088
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEDULER_DB_URL: ${SCHEDULER_DB_URL}
+      BANKING_WORKFLOW_SERVICE_URL: ${BANKING_WORKFLOW_SERVICE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - banking-workflow-service
@@ -215,8 +215,8 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      NOTIFICATION_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NOTIFICATION_DB_URL: ${NOTIFICATION_DB_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - kafka
 
@@ -229,11 +229,11 @@ services:
     env_file: .env
     environment:
       <<: *database-pool
-      AUTH_DB_URL: jdbc:oracle:thin:@${ORACLE_HOST:-host.containers.internal}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}
-      CUSTOMER_SERVICE_URL: http://customer-service:8083
-      TWOFA_SERVICE_URL: http://twofa-service:8082
+      AUTH_DB_URL: ${AUTH_DB_URL}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
+      TWOFA_SERVICE_URL: ${TWOFA_SERVICE_URL}
       SECURITY_JWT_SECRET: ${JWT_SECRET}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       - customer-service
       - twofa-service
@@ -247,19 +247,19 @@ services:
         SERVICE: api-gateway
     env_file: .env
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8081
-      TWOFA_SERVICE_URL: http://twofa-service:8082
-      CUSTOMER_SERVICE_URL: http://customer-service:8083
-      BRANCH_SERVICE_URL: http://branch-service:8084
-      ACCOUNT_SERVICE_URL: http://account-service:8085
-      BENEFICIARY_SERVICE_URL: http://beneficiary-service:8086
-      TRANSACTION_SERVICE_URL: http://transaction-service:8087
-      BANKING_WORKFLOW_SERVICE_URL: http://banking-workflow-service:8088
-      NOTIFICATION_SERVICE_URL: http://notification-service:8089
-      BILLPAYMENT_SERVICE_URL: http://billpayment-service:8090
-      CARD_SERVICE_URL: http://card-service:8091
-      LOAN_SERVICE_URL: http://loan-service:8092
-      BANKING_SCHEDULER_SERVICE_URL: http://banking-scheduler-service:8093
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      TWOFA_SERVICE_URL: ${TWOFA_SERVICE_URL}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
+      BRANCH_SERVICE_URL: ${BRANCH_SERVICE_URL}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL}
+      BENEFICIARY_SERVICE_URL: ${BENEFICIARY_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      BANKING_WORKFLOW_SERVICE_URL: ${BANKING_WORKFLOW_SERVICE_URL}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      BILLPAYMENT_SERVICE_URL: ${BILLPAYMENT_SERVICE_URL}
+      CARD_SERVICE_URL: ${CARD_SERVICE_URL}
+      LOAN_SERVICE_URL: ${LOAN_SERVICE_URL}
+      BANKING_SCHEDULER_SERVICE_URL: ${BANKING_SCHEDULER_SERVICE_URL}
     depends_on:
       - auth-service
       - twofa-service

@@ -2,6 +2,7 @@ package com.oracle.banking.auth.exception;
 
 import com.oracle.banking.shared.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,9 +20,14 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(BadCredentialsException.class)
-    ResponseEntity<ErrorResponse> badCredentials(BadCredentialsException ex, HttpServletRequest request) {
+    @ExceptionHandler({BadCredentialsException.class, SessionAuthenticationException.class})
+    ResponseEntity<ErrorResponse> badCredentials(RuntimeException ex, HttpServletRequest request) {
         return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ErrorResponse> forbidden(AccessDeniedException ex, HttpServletRequest request) {
+        return error(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

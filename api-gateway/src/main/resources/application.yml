@@ -11,65 +11,65 @@ spring:
           globalcors:
             cors-configurations:
               '[/**]':
-                allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+                allowed-origins: ${CORS_ALLOWED_ORIGINS}
                 allowed-methods: GET,POST,PUT,DELETE,OPTIONS
                 allowed-headers: '*'
                 allow-credentials: true
           routes:
             - id: auth-service
-              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              uri: ${AUTH_SERVICE_URL}
               predicates:
                 - Path=/api/auth/**
             - id: twofa-service
-              uri: ${TWOFA_SERVICE_URL:http://localhost:8082}
+              uri: ${TWOFA_SERVICE_URL}
               predicates:
                 - Path=/api/2fa/**
             - id: customer-service
-              uri: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+              uri: ${CUSTOMER_SERVICE_URL}
               predicates:
                 - Path=/api/customers/**
             - id: branch-service
-              uri: ${BRANCH_SERVICE_URL:http://localhost:8084}
+              uri: ${BRANCH_SERVICE_URL}
               predicates:
                 - Path=/api/branches/**
             - id: account-service
-              uri: ${ACCOUNT_SERVICE_URL:http://localhost:8085}
+              uri: ${ACCOUNT_SERVICE_URL}
               predicates:
                 - Path=/api/accounts/**
             - id: beneficiary-service
-              uri: ${BENEFICIARY_SERVICE_URL:http://localhost:8086}
+              uri: ${BENEFICIARY_SERVICE_URL}
               predicates:
                 - Path=/api/beneficiaries/**
             - id: transaction-service
-              uri: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
+              uri: ${TRANSACTION_SERVICE_URL}
               predicates:
                 - Path=/api/transactions/**
             - id: banking-workflow-service
-              uri: ${BANKING_WORKFLOW_SERVICE_URL:http://localhost:8088}
+              uri: ${BANKING_WORKFLOW_SERVICE_URL}
               predicates:
                 - Path=/api/banking/**
             - id: notification-service
-              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8089}
+              uri: ${NOTIFICATION_SERVICE_URL}
               predicates:
                 - Path=/api/notifications/**
             - id: biller-service
-              uri: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+              uri: ${BILLPAYMENT_SERVICE_URL}
               predicates:
                 - Path=/api/billers/**
             - id: bill-payment-service
-              uri: ${BILLPAYMENT_SERVICE_URL:http://localhost:8090}
+              uri: ${BILLPAYMENT_SERVICE_URL}
               predicates:
                 - Path=/api/bill-payments/**
             - id: card-service
-              uri: ${CARD_SERVICE_URL:http://localhost:8091}
+              uri: ${CARD_SERVICE_URL}
               predicates:
                 - Path=/api/cards/**
             - id: loan-service
-              uri: ${LOAN_SERVICE_URL:http://localhost:8092}
+              uri: ${LOAN_SERVICE_URL}
               predicates:
                 - Path=/api/loans/**
             - id: banking-scheduler-service
-              uri: ${BANKING_SCHEDULER_SERVICE_URL:http://localhost:8093}
+              uri: ${BANKING_SCHEDULER_SERVICE_URL}
               predicates:
                 - Path=/api/schedules/**
 
@@ -78,3 +78,8 @@ management:
     web:
       exposure:
         include: health,info,gateway
+
+services:
+  auth-service-url: ${AUTH_SERVICE_URL}
+  internal-api-key: ${INTERNAL_API_KEY}
+  session-validation-timeout-ms: ${GATEWAY_SESSION_VALIDATION_TIMEOUT_MS}

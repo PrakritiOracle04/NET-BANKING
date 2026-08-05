@@ -17,4 +17,6 @@ public interface BankingScheduleRepository extends JpaRepository<BankingSchedule
     List<BankingSchedule> findByStatusOrderByCreatedAtDesc(ScheduleStatus status);
     List<BankingSchedule> findAllByOrderByCreatedAtDesc();
     Optional<BankingSchedule> findFirstByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(ScheduleOperationType operationType);
+    List<BankingSchedule> findByOperationTypeAndSystemOwnedTrueOrderByCreatedAtAsc(ScheduleOperationType operationType);
+    Optional<BankingSchedule> findBySystemKey(String systemKey);
 }

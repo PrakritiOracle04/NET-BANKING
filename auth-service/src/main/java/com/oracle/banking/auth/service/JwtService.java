@@ -21,15 +21,17 @@ public class JwtService {
     private final long expirationMinutes;
 
     public JwtService(@Value("${security.jwt.secret}") String secret,
-                      @Value("${security.jwt.expiration-minutes:30}") long expirationMinutes) {
+                      @Value("${security.jwt.expiration-minutes}") long expirationMinutes) {
         this.secret = secret;
         this.expirationMinutes = expirationMinutes;
     }
 
-    public IssuedToken issue(AppUser user) {
-        Instant expiresAt = Instant.now().plus(expirationMinutes, ChronoUnit.MINUTES);
+    public IssuedToken issue(AppUser user, String sessionId) {
+        Instant expiresAt = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+                .plus(expirationMinutes, ChronoUnit.MINUTES);
         String token = Jwts.builder()
                 .subject(user.getUserId())
+                .claim("sid", sessionId)
                 .claim("username", user.getUsername())
                 .claim("roles", List.of(user.getRole().getRoleName()))
                 .issuedAt(new Date())
