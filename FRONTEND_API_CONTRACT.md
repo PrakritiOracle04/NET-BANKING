@@ -358,6 +358,26 @@ POST /api/cards/{cardId}/unblock
 
 ## Loans
 
+### Loan Type Catalog
+
+Use this for the frontend loan-type dropdown.
+
+```http
+GET /api/loans/types
+```
+
+Response `data`:
+
+```json
+[
+  { "code": "HOME", "label": "Home Loan" },
+  { "code": "VEHICLE", "label": "Vehicle Loan" },
+  { "code": "PERSONAL", "label": "Personal Loan" },
+  { "code": "EDUCATION", "label": "Education Loan" },
+  { "code": "BUSINESS", "label": "Business Loan" }
+]
+```
+
 ### Calculate EMI
 
 ```http
@@ -385,6 +405,7 @@ POST /api/loans
 {
   "customerUserId": "72818704-7217-4f34-a4e9-4d786b9b32cc",
   "linkedAccountId": "bb7f8fcc-3c62-4d2b-a066-f7e4b86d0dbf",
+  "loanType": "HOME",
   "principalAmount": 100000,
   "annualInterestRate": 10.5,
   "tenureMonths": 12,
@@ -428,6 +449,8 @@ PUT /api/loans/{loanId}/status
 ```
 
 Valid statuses are `ACTIVE`, `OVERDUE`, `DEFAULTED`, and `CLOSED`.
+
+Valid loan types are `HOME`, `VEHICLE`, `PERSONAL`, `EDUCATION`, and `BUSINESS`.
 
 ### Repay Loan
 

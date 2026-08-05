@@ -7,6 +7,7 @@ import com.oracle.banking.loan.dto.LoanDtos.LoanBalanceResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanDetailsResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanRepaymentResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanSummaryResponse;
+import com.oracle.banking.loan.dto.LoanDtos.LoanTypeOption;
 import com.oracle.banking.loan.dto.LoanDtos.RegisterLoanRequest;
 import com.oracle.banking.loan.dto.LoanDtos.UpdateLoanStatusRequest;
 import com.oracle.banking.loan.entity.LoanStatus;
@@ -54,6 +55,11 @@ public class LoanController {
                 isAdmin(authentication),
                 customerUserId,
                 status));
+    }
+
+    @GetMapping("/types")
+    ApiResponse<List<LoanTypeOption>> loanTypes() {
+        return ApiResponse.success("Loan types", service.loanTypes());
     }
 
     @GetMapping("/{id}")

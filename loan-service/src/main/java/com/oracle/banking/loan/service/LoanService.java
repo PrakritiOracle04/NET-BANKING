@@ -14,6 +14,7 @@ import com.oracle.banking.loan.dto.LoanDtos.LoanBalanceResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanDetailsResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanRepaymentResponse;
 import com.oracle.banking.loan.dto.LoanDtos.LoanSummaryResponse;
+import com.oracle.banking.loan.dto.LoanDtos.LoanTypeOption;
 import com.oracle.banking.loan.dto.LoanDtos.RegisterLoanRequest;
 import com.oracle.banking.loan.dto.LoanDtos.UpdateLoanStatusRequest;
 import com.oracle.banking.loan.entity.EmiSchedule;
@@ -22,6 +23,7 @@ import com.oracle.banking.loan.entity.Loan;
 import com.oracle.banking.loan.entity.LoanRepayment;
 import com.oracle.banking.loan.entity.LoanRepaymentStatus;
 import com.oracle.banking.loan.entity.LoanStatus;
+import com.oracle.banking.loan.entity.LoanType;
 import com.oracle.banking.loan.event.LoanEventPublisher;
 import com.oracle.banking.loan.exception.LoanExceptions.BadRequest;
 import com.oracle.banking.loan.exception.LoanExceptions.Conflict;
@@ -79,6 +81,7 @@ public class LoanService {
                 request.customerUserId(),
                 request.linkedAccountId(),
                 loanNumber(),
+                request.loanType(),
                 principal,
                 request.annualInterestRate().setScale(4, RoundingMode.HALF_UP),
                 request.tenureMonths(),
@@ -154,6 +157,15 @@ public class LoanService {
         } catch (IllegalArgumentException ex) {
             throw new BadRequest(ex.getMessage());
         }
+    }
+
+    public List<LoanTypeOption> loanTypes() {
+        return List.of(
+                new LoanTypeOption(LoanType.HOME.name(), "Home Loan"),
+                new LoanTypeOption(LoanType.VEHICLE.name(), "Vehicle Loan"),
+                new LoanTypeOption(LoanType.PERSONAL.name(), "Personal Loan"),
+                new LoanTypeOption(LoanType.EDUCATION.name(), "Education Loan"),
+                new LoanTypeOption(LoanType.BUSINESS.name(), "Business Loan"));
     }
 
     public InternalLoanValidationResponse validate(String id, String customerUserId, BigDecimal amount) {

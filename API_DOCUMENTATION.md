@@ -324,6 +324,7 @@ Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with 
 | Method and route | Access | Purpose |
 | --- | --- | --- |
 | `POST /api/loans` | ADMIN | Register an approved/disbursed loan and generate EMI schedule (`201`) |
+| `GET /api/loans/types` | JWT | Loan type catalog for frontend dropdowns |
 | `POST /api/loans/calculate` | JWT | Calculate EMI and preview schedule |
 | `GET /api/loans` | owner/ADMIN | Own loans; ADMIN may filter `customerUserId` and `status` |
 | `GET /api/loans/{id}` | owner/ADMIN | Loan details |
@@ -333,7 +334,7 @@ Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with 
 | `PUT /api/loans/{id}/status` | ADMIN | Move loan status |
 | `POST /api/banking/loans/{loanId}/repay` | owner | Repay through Workflow; requires `Idempotency-Key` |
 
-Loan statuses are `ACTIVE`, `OVERDUE`, `DEFAULTED`, and `CLOSED`. Loan repayment is coordinated by Workflow so account debit, transaction recording, loan allocation, and compensation stay consistent.
+Loan types are `HOME`, `VEHICLE`, `PERSONAL`, `EDUCATION`, and `BUSINESS`. Loan statuses are `ACTIVE`, `OVERDUE`, `DEFAULTED`, and `CLOSED`. Loan repayment is coordinated by Workflow so account debit, transaction recording, loan allocation, and compensation stay consistent.
 
 ### Schedules
 

@@ -6,6 +6,7 @@ import com.oracle.banking.loan.entity.Loan;
 import com.oracle.banking.loan.entity.LoanRepayment;
 import com.oracle.banking.loan.entity.LoanRepaymentStatus;
 import com.oracle.banking.loan.entity.LoanStatus;
+import com.oracle.banking.loan.entity.LoanType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -23,10 +24,13 @@ public final class LoanDtos {
     public record RegisterLoanRequest(
             @NotBlank @Size(max = 36) String customerUserId,
             @NotBlank @Size(max = 36) String linkedAccountId,
+            @NotNull LoanType loanType,
             @NotNull @DecimalMin(value = "0.01") BigDecimal principalAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
             @Min(1) @Max(360) int tenureMonths,
             LocalDate startDate) {}
+
+    public record LoanTypeOption(String code, String label) {}
 
     public record UpdateLoanStatusRequest(@NotNull LoanStatus status) {}
 
@@ -41,6 +45,7 @@ public final class LoanDtos {
             String customerUserId,
             String linkedAccountId,
             String loanNumber,
+            LoanType loanType,
             BigDecimal principalAmount,
             BigDecimal emiAmount,
             BigDecimal outstandingBalance,
@@ -53,6 +58,7 @@ public final class LoanDtos {
                     loan.getCustomerUserId(),
                     loan.getLinkedAccountId(),
                     loan.getLoanNumber(),
+                    loan.getLoanType(),
                     loan.getPrincipalAmount(),
                     loan.getEmiAmount(),
                     loan.getOutstandingBalance(),
@@ -67,6 +73,7 @@ public final class LoanDtos {
             String customerUserId,
             String linkedAccountId,
             String loanNumber,
+            LoanType loanType,
             BigDecimal principalAmount,
             BigDecimal annualInterestRate,
             Integer tenureMonths,
@@ -84,6 +91,7 @@ public final class LoanDtos {
                     loan.getCustomerUserId(),
                     loan.getLinkedAccountId(),
                     loan.getLoanNumber(),
+                    loan.getLoanType(),
                     loan.getPrincipalAmount(),
                     loan.getAnnualInterestRate(),
                     loan.getTenureMonths(),
@@ -101,6 +109,7 @@ public final class LoanDtos {
     public record LoanBalanceResponse(
             String loanId,
             String loanNumber,
+            LoanType loanType,
             BigDecimal outstandingBalance,
             BigDecimal emiAmount,
             LoanStatus status) {
@@ -108,6 +117,7 @@ public final class LoanDtos {
             return new LoanBalanceResponse(
                     loan.getLoanId(),
                     loan.getLoanNumber(),
+                    loan.getLoanType(),
                     loan.getOutstandingBalance(),
                     loan.getEmiAmount(),
                     loan.getStatus());

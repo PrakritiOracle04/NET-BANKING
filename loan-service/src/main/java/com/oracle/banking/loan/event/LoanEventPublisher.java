@@ -49,6 +49,7 @@ public class LoanEventPublisher {
                     "LOAN_CREATED",
                     Map.of(
                             "loanNumber", loan.getLoanNumber(),
+                            "loanType", loan.getLoanType().name(),
                             "principalAmount", loan.getPrincipalAmount().toPlainString(),
                             "emiAmount", loan.getEmiAmount().toPlainString(),
                             "maturityDate", loan.getMaturityDate().toString()));
