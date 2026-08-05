@@ -1,6 +1,7 @@
 package com.oracle.banking.loan.event;
 
 import com.oracle.banking.loan.entity.Loan;
+import com.oracle.banking.loan.entity.LoanApplication;
 import com.oracle.banking.loan.service.NotificationRecipientClient;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -23,6 +24,9 @@ public class LoanEventPublisher {
     private final String emiReminderTopic;
     private final String loanOverdueTopic;
     private final String loanStatusChangedTopic;
+    private final String loanApplicationSubmittedTopic;
+    private final String loanApplicationApprovedTopic;
+    private final String loanApplicationRejectedTopic;
     private final NotificationRecipientClient recipients;
 
     public LoanEventPublisher(
@@ -31,12 +35,18 @@ public class LoanEventPublisher {
             @Value("${loan.events.emi-reminder-topic}") String emiReminderTopic,
             @Value("${loan.events.loan-overdue-topic}") String loanOverdueTopic,
             @Value("${loan.events.loan-status-changed-topic}") String loanStatusChangedTopic,
+            @Value("${loan.events.application-submitted-topic}") String loanApplicationSubmittedTopic,
+            @Value("${loan.events.application-approved-topic}") String loanApplicationApprovedTopic,
+            @Value("${loan.events.application-rejected-topic}") String loanApplicationRejectedTopic,
             NotificationRecipientClient recipients) {
         this.kafka = kafka;
         this.loanCreatedTopic = loanCreatedTopic;
         this.emiReminderTopic = emiReminderTopic;
         this.loanOverdueTopic = loanOverdueTopic;
         this.loanStatusChangedTopic = loanStatusChangedTopic;
+        this.loanApplicationSubmittedTopic = loanApplicationSubmittedTopic;
+        this.loanApplicationApprovedTopic = loanApplicationApprovedTopic;
+        this.loanApplicationRejectedTopic = loanApplicationRejectedTopic;
         this.recipients = recipients;
     }
 
@@ -58,6 +68,21 @@ public class LoanEventPublisher {
                         "emiAmount", loan.getEmiAmount().toPlainString(),
                         "maturityDate", loan.getMaturityDate().toString()));
         publish(loanCreatedTopic, event.referenceNumber(), event);
+    }
+
+    public void loanApplicationSubmitted(LoanApplication application) {
+        publishApplication(loanApplicationSubmittedTopic, "loan-application-submitted", application,
+                "LOAN_APPLICATION_RECEIVED", "Your loan application has been submitted for review.");
+    }
+
+    public void loanApplicationApproved(LoanApplication application) {
+        publishApplication(loanApplicationApprovedTopic, "loan-application-approved", application,
+                "LOAN_APPLICATION_APPROVED", "Your loan application was approved.");
+    }
+
+    public void loanApplicationRejected(LoanApplication application) {
+        publishApplication(loanApplicationRejectedTopic, "loan-application-rejected", application,
+                "LOAN_APPLICATION_REJECTED", "Your loan application was rejected.");
     }
 
     public boolean emiReminder(String reference, String customerUserId, String loanId, BigDecimal amount, LocalDate dueDate) {
@@ -122,6 +147,25 @@ public class LoanEventPublisher {
             log.warn("Loan event has no notification recipient for loan {}", loanId);
             return null;
         }
+    }
+
+    private void publishApplication(String topic, String eventType, LoanApplication application, String templateName, String message) {
+        DomainEvent event = new DomainEvent(
+                eventType,
+                "LOANAPP-" + application.getApplicationId(),
+                application.getCustomerUserId(),
+                application.getIssuedLoanId(),
+                application.getRequestedAmount(),
+                application.getStatus().name(),
+                Instant.now(),
+                recipientOrNull(application.getCustomerUserId(), application.getApplicationId()),
+                templateName,
+                Map.of(
+                        "message", message,
+                        "applicationId", application.getApplicationId(),
+                        "loanType", application.getLoanType().name(),
+                        "requestedAmount", application.getRequestedAmount().toPlainString()));
+        publish(topic, event.referenceNumber(), event);
     }
 
     private void publish(String topic, String key, DomainEvent event) {

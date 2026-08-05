@@ -18,4 +18,8 @@ public final class LoanExceptions {
     public static class Forbidden extends RuntimeException {
         public Forbidden(String message) { super(message); }
     }
+
+    public static class DownstreamFailure extends RuntimeException {
+        public DownstreamFailure(String message) { super(message); }
+    }
 }

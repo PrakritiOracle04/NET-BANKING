@@ -16,6 +16,10 @@ This catalog is the implementation contract between domain producers, Notificati
 | --- | --- | --- | --- |
 | `registration-success` | Auth | `USER_REGISTERED` / `USER` | `actorUserId`, registration reference |
 | `login-alert` | Auth | `LOGIN_SUCCEEDED` / `SESSION` | `actorUserId`, login reference |
+| `password-reset-requested` | Auth | `PASSWORD_RESET_REQUESTED` / `PASSWORD_RESET` | `actorUserId`, generated reset reference |
+| `password-reset-verification-failed` | Auth | `PASSWORD_RESET_VERIFICATION_FAILED` / `PASSWORD_RESET` | `actorUserId`, bounded reason code |
+| `password-reset-verified` | Auth | `PASSWORD_RESET_VERIFIED` / `PASSWORD_RESET` | `actorUserId`, generated reset reference |
+| `password-reset-completed` | Auth | `PASSWORD_RESET_COMPLETED` / `PASSWORD_RESET` | `actorUserId`, invalidated session count |
 | `transaction-created` | Workflow | `TRANSACTION_CREATED` / `TRANSACTION` | `actorUserId`, workflow reference |
 | `account-debited` | Workflow | `ACCOUNT_DEBITED` / `ACCOUNT` | `actorUserId`, account ID and workflow reference |
 | `account-credited` | Workflow | `ACCOUNT_CREDITED` / `ACCOUNT` | `actorUserId`, account ID and workflow reference |
@@ -28,9 +32,15 @@ This catalog is the implementation contract between domain producers, Notificati
 | `card-blocked` | Card | `CARD_BLOCKED` / `CARD` | `actorUserId`, card reference |
 | `card-unblocked` | Card | `CARD_UNBLOCKED` / `CARD` | `actorUserId`, card reference |
 | `card-limit-updated` | Card | `CARD_LIMIT_UPDATED` / `CARD` | `actorUserId`, card reference |
+| `card-application-submitted` | Card | `CARD_APPLICATION_SUBMITTED` / `CARD_APPLICATION` | `actorUserId`, application reference |
+| `card-application-approved` | Card | `CARD_APPLICATION_APPROVED` / `CARD_APPLICATION` | `actorUserId`, application reference |
+| `card-application-rejected` | Card | `CARD_APPLICATION_REJECTED` / `CARD_APPLICATION` | `actorUserId`, application reference |
 | `loan-created` | Loan | `LOAN_REGISTERED` / `LOAN` | `customerUserId`, loan ID/number; metadata includes `loanType` |
 | `emi-reminder` | Loan | `EMI_REMINDER_EMITTED` / `LOAN` | `customerUserId`, loan ID |
 | `loan-overdue` | Loan | `LOAN_OVERDUE` / `LOAN` | `customerUserId`, loan ID |
+| `loan-application-submitted` | Loan | `LOAN_APPLICATION_SUBMITTED` / `LOAN_APPLICATION` | `customerUserId`, application reference |
+| `loan-application-approved` | Loan | `LOAN_APPLICATION_APPROVED` / `LOAN_APPLICATION` | `customerUserId`, application reference |
+| `loan-application-rejected` | Loan | `LOAN_APPLICATION_REJECTED` / `LOAN_APPLICATION` | `customerUserId`, application reference |
 | `schedule-triggered` | Scheduler | `SCHEDULE_TRIGGERED` / `SCHEDULE_EXECUTION` | `actorUserId`, schedule ID and workflow idempotency key |
 | `schedule-completed` | Scheduler | `SCHEDULE_COMPLETED` / `SCHEDULE_EXECUTION` | `actorUserId`, schedule ID and workflow idempotency key |
 | `schedule-failed` | Scheduler | `SCHEDULE_FAILED` / `SCHEDULE_EXECUTION` | `actorUserId`, schedule ID and workflow idempotency key |
@@ -44,6 +54,10 @@ These events are additive. Notification subscribes only when an email is require
 | `authentication-failed` | Auth | Sanitized failed-login outcome; no submitted username/email in metadata |
 | `session-logout` | Auth | Current `sid` invalidated; do not place the JWT or raw session token in metadata |
 | `session-logout-all` | Auth | All active sessions invalidated for a user |
+| `password-reset-requested` | Auth | Password reset challenge requested without exposing email or OTP |
+| `password-reset-verification-failed` | Auth | OTP verification failed with bounded reason code |
+| `password-reset-verified` | Auth | OTP verified and short-lived reset token issued |
+| `password-reset-completed` | Auth | Password changed and existing sessions invalidated |
 | `account-opened` | Workflow | Completed account-opening Saga |
 | `account-status-changed` | Account | Administrative status transition |
 | `transaction-reversed` | Transaction | Successful idempotent reversal |
@@ -57,6 +71,12 @@ These events are additive. Notification subscribes only when an email is require
 | `kyc-submitted` | Customer | KYC submitted without identity values |
 | `kyc-status-changed` | Customer | Administrative KYC outcome |
 | `loan-status-changed` | Loan | Administrative/automatic loan status transition |
+| `card-application-submitted` | Card | Customer debit-card application submitted |
+| `card-application-approved` | Card | Admin approved debit-card application and card was issued inactive |
+| `card-application-rejected` | Card | Admin rejected debit-card application |
+| `loan-application-submitted` | Loan | Customer loan application submitted |
+| `loan-application-approved` | Loan | Admin approved loan application and active loan was created |
+| `loan-application-rejected` | Loan | Admin rejected loan application |
 | `schedule-created` | Scheduler | Customer schedule created |
 | `schedule-updated` | Scheduler | Customer schedule updated |
 | `schedule-paused` | Scheduler | Customer schedule paused |

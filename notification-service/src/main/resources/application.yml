@@ -45,6 +45,8 @@ notification:
   sender-name: ${SMTP_FROM_NAME}
   retry-delay-ms: ${NOTIFICATION_RETRY_DELAY_MS}
   max-retries: ${NOTIFICATION_MAX_RETRIES}
+services:
+  internal-api-key: ${INTERNAL_API_KEY}
 springdoc:
   swagger-ui:
     path: /swagger-ui

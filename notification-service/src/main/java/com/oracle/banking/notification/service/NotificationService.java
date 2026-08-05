@@ -78,6 +78,25 @@ public class NotificationService {
                         + "<p>Use this link: {{verificationLink}}</p>",
                 "Reset link: {{verificationLink}}");
         seedTemplate(
+                "PASSWORD_RESET_OTP",
+                "PASSWORD_RESET",
+                "Your Oracle Banking password reset code",
+                "<h2>Password reset code</h2>"
+                        + "<p>Hello {{customerName}}, use this code to reset your password:</p>"
+                        + "<h1>{{otpCode}}</h1>"
+                        + "<p>This code expires in {{expiresInMinutes}} minutes.</p>",
+                "Hello {{customerName}}, your Oracle Banking password reset code is {{otpCode}}. "
+                        + "It expires in {{expiresInMinutes}} minutes.");
+        seedTemplate(
+                "PASSWORD_CHANGED",
+                "PASSWORD_RESET",
+                "Your Oracle Banking password was changed",
+                "<h2>Password changed</h2>"
+                        + "<p>Hello {{customerName}}, your password was changed at {{changedAt}}.</p>"
+                        + "<p>If this was not you, contact support immediately.</p>",
+                "Hello {{customerName}}, your password was changed at {{changedAt}}. "
+                        + "If this was not you, contact support immediately.");
+        seedTemplate(
                 "GENERIC_NOTIFICATION",
                 "GENERIC",
                 "Oracle Banking notification",
@@ -110,6 +129,42 @@ public class NotificationService {
                 "Scheduled payment failed",
                 "<p>{{message}}</p>",
                 "{{message}}");
+        seedTemplate(
+                "CARD_APPLICATION_RECEIVED",
+                "CARD",
+                "Card application received",
+                "<p>Your {{cardProduct}} {{cardType}} card application has been received.</p>",
+                "Your {{cardProduct}} {{cardType}} card application has been received.");
+        seedTemplate(
+                "CARD_APPLICATION_APPROVED",
+                "CARD",
+                "Card application approved",
+                "<p>Your {{cardProduct}} {{cardType}} card application has been approved.</p>",
+                "Your {{cardProduct}} {{cardType}} card application has been approved.");
+        seedTemplate(
+                "CARD_APPLICATION_REJECTED",
+                "CARD",
+                "Card application update",
+                "<p>Your card application has been reviewed. Status: rejected.</p>",
+                "Your card application has been reviewed. Status: rejected.");
+        seedTemplate(
+                "LOAN_APPLICATION_RECEIVED",
+                "LOAN",
+                "Loan application received",
+                "<p>Your {{loanType}} loan application has been received.</p>",
+                "Your {{loanType}} loan application has been received.");
+        seedTemplate(
+                "LOAN_APPLICATION_APPROVED",
+                "LOAN",
+                "Loan application approved",
+                "<p>Your {{loanType}} loan application has been approved.</p>",
+                "Your {{loanType}} loan application has been approved.");
+        seedTemplate(
+                "LOAN_APPLICATION_REJECTED",
+                "LOAN",
+                "Loan application update",
+                "<p>Your loan application has been reviewed. Status: rejected.</p>",
+                "Your loan application has been reviewed. Status: rejected.");
     }
 
     private void seedTemplate(

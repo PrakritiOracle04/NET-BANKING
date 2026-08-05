@@ -14,16 +14,28 @@ public class AuthAuditPublisher {
     private final String authenticationFailedTopic;
     private final String logoutTopic;
     private final String logoutAllTopic;
+    private final String passwordResetRequestedTopic;
+    private final String passwordResetVerificationFailedTopic;
+    private final String passwordResetVerifiedTopic;
+    private final String passwordResetCompletedTopic;
 
     public AuthAuditPublisher(
             KafkaTemplate<String, Object> kafka,
             @Value("${banking.events.authentication-failed-topic}") String authenticationFailedTopic,
             @Value("${banking.events.session-logout-topic}") String logoutTopic,
-            @Value("${banking.events.session-logout-all-topic}") String logoutAllTopic) {
+            @Value("${banking.events.session-logout-all-topic}") String logoutAllTopic,
+            @Value("${banking.events.password-reset-requested-topic}") String passwordResetRequestedTopic,
+            @Value("${banking.events.password-reset-verification-failed-topic}") String passwordResetVerificationFailedTopic,
+            @Value("${banking.events.password-reset-verified-topic}") String passwordResetVerifiedTopic,
+            @Value("${banking.events.password-reset-completed-topic}") String passwordResetCompletedTopic) {
         this.kafka = kafka;
         this.authenticationFailedTopic = authenticationFailedTopic;
         this.logoutTopic = logoutTopic;
         this.logoutAllTopic = logoutAllTopic;
+        this.passwordResetRequestedTopic = passwordResetRequestedTopic;
+        this.passwordResetVerificationFailedTopic = passwordResetVerificationFailedTopic;
+        this.passwordResetVerifiedTopic = passwordResetVerifiedTopic;
+        this.passwordResetCompletedTopic = passwordResetCompletedTopic;
     }
 
     public void authenticationFailed(String actorUserId) {
@@ -36,6 +48,24 @@ public class AuthAuditPublisher {
 
     public void logoutAll(String actorUserId, int invalidatedSessions) {
         publish(logoutAllTopic, actorUserId, "SESSION_LOGOUT_ALL", "SUCCESS", Map.of("invalidatedSessions", invalidatedSessions));
+    }
+
+    public void passwordResetRequested(String actorUserId) {
+        publish(passwordResetRequestedTopic, actorUserId, "PASSWORD_RESET_REQUESTED", "SUCCESS", Map.of());
+    }
+
+    public void passwordResetVerificationFailed(String actorUserId, String reasonCode) {
+        publish(passwordResetVerificationFailedTopic, actorUserId, "PASSWORD_RESET_VERIFICATION_FAILED", "FAILED",
+                Map.of("reasonCode", reasonCode));
+    }
+
+    public void passwordResetVerified(String actorUserId) {
+        publish(passwordResetVerifiedTopic, actorUserId, "PASSWORD_RESET_VERIFIED", "SUCCESS", Map.of());
+    }
+
+    public void passwordResetCompleted(String actorUserId, int invalidatedSessions) {
+        publish(passwordResetCompletedTopic, actorUserId, "PASSWORD_RESET_COMPLETED", "SUCCESS",
+                Map.of("invalidatedSessions", invalidatedSessions));
     }
 
     private void publish(String topic, String actorUserId, String action, String status, Map<String, Object> metadata) {

@@ -74,6 +74,47 @@ POST /api/auth/login
 
 Use `data.token` as the bearer token.
 
+### Password Recovery
+
+Request a one-time password. The response is intentionally generic so unknown emails are not revealed.
+
+```http
+POST /api/auth/password-reset/request
+```
+
+```json
+{
+  "email": "customer_demo@example.com"
+}
+```
+
+Verify the OTP from email:
+
+```http
+POST /api/auth/password-reset/verify
+```
+
+```json
+{
+  "email": "customer_demo@example.com",
+  "otpCode": "123456"
+}
+```
+
+Use `data.resetToken` from the verify response:
+
+```http
+POST /api/auth/password-reset/confirm
+```
+
+```json
+{
+  "resetToken": "reset-token-from-verify",
+  "newPassword": "<new-password>",
+  "confirmPassword": "<new-password>"
+}
+```
+
 ## Accounts And Banking
 
 ### List Accounts
@@ -278,24 +319,72 @@ DELETE /api/schedules/{scheduleId}
 
 ## Cards
 
-### Issue Card
+### Card Products
 
-Admin only.
+Use this for the card product dropdown. Current products are debit-card tiers only; credit-card products are reserved for a later phase.
 
 ```http
-POST /api/cards
+GET /api/cards/products
+```
+
+### Submit Card Application
+
+Customer route. The backend uses the logged-in user from the JWT, not a `customerUserId` from the body.
+
+```http
+POST /api/cards/applications
 ```
 
 ```json
 {
-  "customerUserId": "72818704-7217-4f34-a4e9-4d786b9b32cc",
   "accountId": "bb7f8fcc-3c62-4d2b-a066-f7e4b86d0dbf",
-  "cardType": "DEBIT",
-  "dailyTransactionLimit": 25000
+  "cardProduct": "GOLD",
+  "annualIncome": 500000,
+  "occupation": "Software Engineer",
+  "deliveryAddress": "Home address",
+  "requestedDailyLimit": 25000
 }
 ```
 
-Only one non-expired card can exist per account.
+Only one pending card application or non-expired card can exist per account.
+
+### My Card Applications
+
+```http
+GET /api/cards/applications
+GET /api/cards/applications/{applicationId}
+```
+
+### Admin Card Application Review
+
+Admin only.
+
+```http
+GET /api/cards/admin/applications?status=PENDING&page=0&size=50
+POST /api/cards/admin/applications/{applicationId}/approve
+POST /api/cards/admin/applications/{applicationId}/reject
+```
+
+Approve body:
+
+```json
+{
+  "approvedDailyLimit": 25000,
+  "notes": "Approved after review"
+}
+```
+
+Reject body:
+
+```json
+{
+  "reason": "Eligibility criteria not met"
+}
+```
+
+Approval creates an `INACTIVE` debit card. The customer then activates it with `POST /api/cards/{cardId}/activate`.
+
+Direct `POST /api/cards` is retired from the public/frontend contract.
 
 ### List Cards
 
@@ -393,25 +482,66 @@ POST /api/loans/calculate
 }
 ```
 
-### Register Loan
+### Submit Loan Application
 
-Admin only.
+Customer route. The backend uses the logged-in user from the JWT, not a `customerUserId` from the body.
 
 ```http
-POST /api/loans
+POST /api/loans/applications
 ```
 
 ```json
 {
-  "customerUserId": "72818704-7217-4f34-a4e9-4d786b9b32cc",
   "linkedAccountId": "bb7f8fcc-3c62-4d2b-a066-f7e4b86d0dbf",
   "loanType": "HOME",
-  "principalAmount": 100000,
-  "annualInterestRate": 10.5,
+  "requestedAmount": 100000,
   "tenureMonths": 12,
-  "startDate": "2026-08-04"
+  "monthlyIncome": 50000,
+  "employmentType": "SALARIED",
+  "purpose": "Home renovation"
 }
 ```
+
+### My Loan Applications
+
+```http
+GET /api/loans/applications
+GET /api/loans/applications/{applicationId}
+```
+
+### Admin Loan Application Review
+
+Admin only.
+
+```http
+GET /api/loans/admin/applications?status=PENDING&page=0&size=50
+POST /api/loans/admin/applications/{applicationId}/approve
+POST /api/loans/admin/applications/{applicationId}/reject
+```
+
+Approve body:
+
+```json
+{
+  "approvedAmount": 100000,
+  "annualInterestRate": 10.5,
+  "tenureMonths": 12,
+  "startDate": "2026-08-05",
+  "notes": "Approved after manual review"
+}
+```
+
+Reject body:
+
+```json
+{
+  "reason": "Insufficient eligibility documents"
+}
+```
+
+Approval creates the actual ACTIVE loan and EMI schedule.
+
+Direct `POST /api/loans` remains backend/admin-only and should not be used by frontend customer flows.
 
 ### List Loans
 

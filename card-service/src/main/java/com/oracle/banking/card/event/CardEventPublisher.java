@@ -1,6 +1,7 @@
 package com.oracle.banking.card.event;
 
 import com.oracle.banking.card.entity.BankCard;
+import com.oracle.banking.card.entity.CardApplication;
 import com.oracle.banking.shared.constants.SecurityConstants;
 import java.time.Instant;
 import java.util.Map;
@@ -31,7 +32,7 @@ public class CardEventPublisher {
     }
 
     public void publish(String eventType, BankCard card, String message) {
-        String recipient = recipientOrNull(card);
+        String recipient = recipientOrNull(card.getCustomerUserId(), "card " + card.getCardId());
         events.publishEvent(new CardNotificationEvent(
                 eventType,
                 "CARD-" + card.getCardId(),
@@ -43,20 +44,37 @@ public class CardEventPublisher {
                 Map.of("message", message, "lastFourDigits", card.getLastFourDigits())));
     }
 
-    private String recipientOrNull(BankCard card) {
+    public void publishApplication(String eventType, CardApplication application, String message, String templateName) {
+        String recipient = recipientOrNull(application.getCustomerUserId(), "card application " + application.getApplicationId());
+        events.publishEvent(new CardNotificationEvent(
+                eventType,
+                "CARDAPP-" + application.getApplicationId(),
+                application.getCustomerUserId(),
+                application.getStatus().name(),
+                Instant.now(),
+                recipient,
+                templateName,
+                Map.of(
+                        "message", message,
+                        "applicationId", application.getApplicationId(),
+                        "cardProduct", application.getCardProduct().name(),
+                        "cardType", application.getCardType().name())));
+    }
+
+    private String recipientOrNull(String userId, String reference) {
         try {
             Recipient recipient = authClient.get()
-                    .uri("/internal/auth/users/{userId}/notification-recipient", card.getCustomerUserId())
+                    .uri("/internal/auth/users/{userId}/notification-recipient", userId)
                     .header(SecurityConstants.INTERNAL_API_KEY_HEADER, internalApiKey)
                     .retrieve()
                     .body(Recipient.class);
             if (recipient == null || recipient.email() == null || recipient.email().isBlank()) {
-                log.warn("Card event has no notification recipient for card {}", card.getCardId());
+                log.warn("Card event has no notification recipient for {}", reference);
                 return null;
             }
             return recipient.email();
         } catch (RestClientException exception) {
-            log.warn("Card event has no notification recipient because Auth lookup failed for card {}", card.getCardId());
+            log.warn("Card event has no notification recipient because Auth lookup failed for {}", reference);
             return null;
         }
     }

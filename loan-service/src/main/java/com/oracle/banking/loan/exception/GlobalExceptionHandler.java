@@ -2,6 +2,7 @@ package com.oracle.banking.loan.exception;
 
 import com.oracle.banking.loan.exception.LoanExceptions.BadRequest;
 import com.oracle.banking.loan.exception.LoanExceptions.Conflict;
+import com.oracle.banking.loan.exception.LoanExceptions.DownstreamFailure;
 import com.oracle.banking.loan.exception.LoanExceptions.Forbidden;
 import com.oracle.banking.loan.exception.LoanExceptions.NotFound;
 import com.oracle.banking.shared.response.ErrorResponse;
@@ -34,6 +35,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequest.class)
     ResponseEntity<ErrorResponse> badRequest(BadRequest ex, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DownstreamFailure.class)
+    ResponseEntity<ErrorResponse> downstream(DownstreamFailure ex, HttpServletRequest request) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
     @ExceptionHandler({Forbidden.class, AccessDeniedException.class})

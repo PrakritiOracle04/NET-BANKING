@@ -19,7 +19,16 @@ public class SecurityConfiguration {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/internal/**", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/password-reset/request",
+                                "/api/auth/password-reset/verify",
+                                "/api/auth/password-reset/confirm",
+                                "/internal/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) -> response.sendError(401))

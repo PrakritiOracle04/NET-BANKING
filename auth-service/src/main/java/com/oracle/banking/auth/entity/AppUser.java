@@ -67,4 +67,8 @@ public class AppUser {
     public String getPasswordHash() { return passwordHash; }
     public String getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+
+    public void updatePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 }
