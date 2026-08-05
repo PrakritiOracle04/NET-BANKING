@@ -130,6 +130,9 @@ public class WorkflowSaga {
     public String getCreditTransactionReference() { return creditTransactionReference; }
     public String getDebitTransactionId() { return debitTransactionId; }
     public String getCreditTransactionId() { return creditTransactionId; }
+    public String getFailureReason() { return failureReason; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public boolean hasMutation() {
         return sourceMovementReference != null
                 || destinationMovementReference != null

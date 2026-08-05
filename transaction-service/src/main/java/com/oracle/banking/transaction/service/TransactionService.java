@@ -77,6 +77,26 @@ public class TransactionService {
         return repository.findAll(spec, pageable(page, size, sortBy, direction)).map(TransactionResponse::from);
     }
 
+    public Page<TransactionResponse> operationsSearch(
+            String customerUserId,
+            String accountId,
+            TransactionType transactionType,
+            TransactionStatus status,
+            Instant fromDate,
+            Instant toDate,
+            int page,
+            int size) {
+        Specification<BankTransaction> spec = searchSpec(
+                customerUserId, accountId, null, transactionType, status,
+                null, null, null, fromDate, toDate);
+        return repository.findAll(spec, pageable(page, size, "transactionDate", "desc"))
+                .map(TransactionResponse::from);
+    }
+
+    public long count() { return repository.count(); }
+
+    public long countByStatus(TransactionStatus status) { return repository.countByStatus(status); }
+
     public StatementResponse statement(String userId, boolean admin, String accountId, Instant fromDate, Instant toDate) {
         if (accountId == null || accountId.isBlank()) {
             throw new BadRequest("accountId is required");
