@@ -11,7 +11,6 @@ import com.oracle.banking.loan.entity.LoanRepaymentStatus;
 import com.oracle.banking.loan.entity.LoanStatus;
 import com.oracle.banking.loan.entity.LoanType;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,7 +29,7 @@ public final class LoanDtos {
             @NotNull LoanType loanType,
             @NotNull @DecimalMin(value = "0.01") BigDecimal principalAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             LocalDate startDate) {}
 
     public record LoanTypeOption(String code, String label) {}
@@ -39,7 +38,7 @@ public final class LoanDtos {
             @NotBlank @Size(max = 36) String linkedAccountId,
             @NotNull LoanType loanType,
             @NotNull @DecimalMin(value = "0.01") BigDecimal requestedAmount,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             @NotNull @DecimalMin(value = "0.00") BigDecimal monthlyIncome,
             @NotNull EmploymentType employmentType,
             @NotBlank @Size(max = 500) String purpose) {}
@@ -47,7 +46,7 @@ public final class LoanDtos {
     public record LoanApplicationApprovalRequest(
             @NotNull @DecimalMin(value = "0.01") BigDecimal approvedAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             LocalDate startDate,
             @Size(max = 500) String notes) {}
 
@@ -91,7 +90,7 @@ public final class LoanDtos {
     public record CalculateEmiRequest(
             @NotNull @DecimalMin(value = "0.01") BigDecimal loanAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             LocalDate startDate) {}
 
     public record LoanSummaryResponse(
