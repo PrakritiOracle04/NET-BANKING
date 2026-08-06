@@ -1,6 +1,9 @@
 package com.oracle.banking.card.dto;
 
 import com.oracle.banking.card.entity.BankCard;
+import com.oracle.banking.card.entity.CardApplication;
+import com.oracle.banking.card.entity.CardApplicationStatus;
+import com.oracle.banking.card.entity.CardProduct;
 import com.oracle.banking.card.entity.CardStatus;
 import com.oracle.banking.card.entity.CardType;
 import com.oracle.banking.card.entity.CreditCardAccount;
@@ -19,6 +22,7 @@ public final class CardDtos {
             @NotBlank @Size(max = 36) String customerUserId,
             @NotBlank @Size(max = 36) String accountId,
             @NotNull CardType cardType,
+            CardProduct cardProduct,
             @NotNull @DecimalMin("0.01") BigDecimal dailyTransactionLimit
     ) {}
 
@@ -92,6 +96,7 @@ public final class CardDtos {
             String accountId,
             String maskedCardNumber,
             CardType cardType,
+            CardProduct cardProduct,
             CardStatus status,
             BigDecimal dailyTransactionLimit,
             int expiryMonth,
@@ -105,7 +110,7 @@ public final class CardDtos {
         public static CardResponse from(BankCard card) {
             return new CardResponse(
                     card.getCardId(), card.getCustomerUserId(), card.getAccountId(),
-                    "************" + card.getLastFourDigits(), card.getCardType(), card.getStatus(),
+                    "************" + card.getLastFourDigits(), card.getCardType(), card.getCardProduct(), card.getStatus(),
                     card.getDailyTransactionLimit(), card.getExpiryMonth(), card.getExpiryYear(),
                     card.getBlockedReason(), card.getCreatedAt(), card.getUpdatedAt(),
                     card.getActivatedAt(), card.getBlockedAt());

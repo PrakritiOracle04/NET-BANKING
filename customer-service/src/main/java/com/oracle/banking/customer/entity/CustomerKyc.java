@@ -89,6 +89,14 @@ public class CustomerKyc {
         verifiedAt = null;
     }
 
+    public void markDocumentsResubmitted() {
+        if (status == KycStatus.REJECTED) {
+            status = KycStatus.PENDING;
+            rejectionReason = null;
+            verifiedAt = null;
+        }
+    }
+
     @PreUpdate
     void beforeUpdate() {
         updatedAt = Instant.now();

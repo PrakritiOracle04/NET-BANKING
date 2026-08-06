@@ -18,7 +18,7 @@ public class AuditEventAdapter {
             "recipient", "email", "password", "token", "jwt", "otp", "secret", "apikey",
             "aadhaar", "aadhar", "pan", "cardnumber", "accountnumber", "message", "body");
     private static final Set<String> METADATA_KEYS = Set.of(
-            "accountId", "sourceAccountId", "destinationAccountId", "cardId", "loanId", "loanType",
+            "accountId", "sourceAccountId", "destinationAccountId", "applicationId", "cardId", "loanId", "loanType",
             "scheduleId", "executionId", "billPaymentId", "transactionId", "workflowType", "operationType",
             "reportId", "reportType", "format", "amount", "reasonCode");
 
@@ -103,10 +103,18 @@ public class AuditEventAdapter {
                 case "login-alert" -> value(topic, "auth-service", "LOGIN_SUCCEEDED", "SESSION", "SUCCESS");
                 case "authentication-failed" -> value(topic, "auth-service", "AUTHENTICATION_FAILED", "SESSION", "FAILED");
                 case "session-logout", "session-logout-all" -> value(topic, "auth-service", topic.toUpperCase().replace('-', '_'), "SESSION", "SUCCESS");
+                case "password-reset-requested", "password-reset-verified", "password-reset-completed" ->
+                        value(topic, "auth-service", topic.toUpperCase().replace('-', '_'), "PASSWORD_RESET", "SUCCESS");
+                case "password-reset-verification-failed" ->
+                        value(topic, "auth-service", "PASSWORD_RESET_VERIFICATION_FAILED", "PASSWORD_RESET", "FAILED");
                 case "card-issued", "card-activated", "card-blocked", "card-unblocked", "card-limit-updated" ->
                         value(topic, "card-service", topic.toUpperCase().replace('-', '_'), "CARD", "SUCCESS");
+                case "card-application-submitted", "card-application-approved", "card-application-rejected" ->
+                        value(topic, "card-service", topic.toUpperCase().replace('-', '_'), "CARD_APPLICATION", status(topic));
                 case "loan-created", "emi-reminder", "loan-overdue", "loan-status-changed" ->
                         value(topic, "loan-service", topic.toUpperCase().replace('-', '_'), "LOAN", "SUCCESS");
+                case "loan-application-submitted", "loan-application-approved", "loan-application-rejected" ->
+                        value(topic, "loan-service", topic.toUpperCase().replace('-', '_'), "LOAN_APPLICATION", status(topic));
                 case "schedule-triggered", "schedule-completed", "schedule-failed", "schedule-created",
                         "schedule-updated", "schedule-paused", "schedule-resumed", "schedule-cancelled" ->
                         value(topic, "banking-scheduler-service", topic.toUpperCase().replace('-', '_'), "SCHEDULE", status(topic));

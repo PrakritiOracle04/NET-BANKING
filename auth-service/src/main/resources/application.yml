@@ -28,6 +28,10 @@ banking:
     authentication-failed-topic: authentication-failed
     session-logout-topic: session-logout
     session-logout-all-topic: session-logout-all
+    password-reset-requested-topic: password-reset-requested
+    password-reset-verification-failed-topic: password-reset-verification-failed
+    password-reset-verified-topic: password-reset-verified
+    password-reset-completed-topic: password-reset-completed
 
 security:
   jwt:
@@ -41,7 +45,18 @@ services:
     base-url: ${CUSTOMER_SERVICE_URL}
   twofa:
     base-url: ${TWOFA_SERVICE_URL}
+  notification:
+    base-url: ${NOTIFICATION_SERVICE_URL}
   internal-api-key: ${INTERNAL_API_KEY}
+
+password-reset:
+  otp-hmac-key: ${PASSWORD_RESET_OTP_HMAC_KEY}
+  otp-ttl-seconds: ${PASSWORD_RESET_OTP_TTL_SECONDS}
+  token-ttl-seconds: ${PASSWORD_RESET_TOKEN_TTL_SECONDS}
+  max-attempts: ${PASSWORD_RESET_MAX_ATTEMPTS}
+  resend-cooldown-seconds: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS}
+  retention-days: ${PASSWORD_RESET_RETENTION_DAYS}
+  cleanup-delay-ms: ${PASSWORD_RESET_CLEANUP_DELAY_MS}
 
 springdoc:
   swagger-ui:

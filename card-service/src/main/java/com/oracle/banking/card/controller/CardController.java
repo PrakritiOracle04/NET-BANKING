@@ -1,8 +1,12 @@
 package com.oracle.banking.card.controller;
 
+import com.oracle.banking.card.dto.CardDtos.CardApplicationApprovalRequest;
+import com.oracle.banking.card.dto.CardDtos.CardApplicationRejectionRequest;
+import com.oracle.banking.card.dto.CardDtos.CardApplicationRequest;
+import com.oracle.banking.card.dto.CardDtos.CardApplicationResponse;
 import com.oracle.banking.card.dto.CardDtos.CardBlockRequest;
-import com.oracle.banking.card.dto.CardDtos.CardIssueRequest;
 import com.oracle.banking.card.dto.CardDtos.CardLimitUpdateRequest;
+import com.oracle.banking.card.dto.CardDtos.CardProductResponse;
 import com.oracle.banking.card.dto.CardDtos.CardResponse;
 import com.oracle.banking.card.dto.CardDtos.CardStatusResponse;
 import com.oracle.banking.card.dto.CardDtos.CreditCardAccountResponse;
@@ -13,7 +17,6 @@ import com.oracle.banking.card.service.CreditCardAccountService;
 import com.oracle.banking.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -24,7 +27,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController

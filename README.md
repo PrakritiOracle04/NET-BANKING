@@ -99,4 +99,4 @@ Swagger is available at `/swagger-ui` on each service. Send external requests th
 - `/api/reports/**`
 - `/api/admin/**`
 
-The gateway forwards these paths to their owning services on ports 8081-8096. See `FRONTEND_API_CONTRACT.md` for frontend-ready URLs, request bodies, auth rules, and smoke-test status. Phase 5 operations, audit, reporting, storage, and troubleshooting are documented in `PHASE5_OPERATIONS_GUIDE.md`.
+The gateway forwards these paths to their owning services on ports 8081-8096. See `docs/FRONTEND_API_CONTRACT.md` for frontend-ready URLs, request bodies, auth rules, and smoke-test status. Use `docs/POST_PHASE5_TESTING.md` for the password-recovery, card-application, and loan-application Postman flow. Phase 5 operations, audit, reporting, storage, and troubleshooting are documented in `docs/PHASE5_OPERATIONS_GUIDE.md`.

@@ -95,6 +95,7 @@ public class CardService {
         card.setCardNumberHash(crypto.fingerprint(cardNumber));
         card.setLastFourDigits(cardNumber.substring(cardNumber.length() - 4));
         card.setCardType(request.cardType());
+        card.setCardProduct(request.cardProduct());
         card.setDailyTransactionLimit(request.dailyTransactionLimit());
         card.setExpiryMonth(expiry.getMonthValue());
         card.setExpiryYear(expiry.getYear());
@@ -156,13 +157,13 @@ public class CardService {
         return CardResponse.from(saved);
     }
 
-    private void validateLimit(BigDecimal limit) {
+    void validateLimit(BigDecimal limit) {
         if (limit == null || limit.signum() <= 0 || limit.compareTo(maximumDailyLimit) > 0) {
             throw new BadRequest("Daily transaction limit must be positive and no greater than " + maximumDailyLimit);
         }
     }
 
-    private AccountValidationResponse validateAccount(String accountId) {
+    AccountValidationResponse validateAccount(String accountId) {
         try {
             AccountValidationResponse response = accountClient.get()
                     .uri("/internal/accounts/{id}/validate", accountId)

@@ -508,6 +508,214 @@ Returns the masked KYC response above. `404` means KYC has not been submitted.
 
 The DTO enum contains `PENDING`, `VERIFIED`, and `REJECTED`, but this administrative transition endpoint currently accepts only `VERIFIED` or `REJECTED`. A nonblank `rejectionReason` is mandatory for `REJECTED` and may contain at most 240 characters. Sending `PENDING` returns `400`.
 
+Verification additionally requires current `AADHAAR` and `PAN` document records. `ADDRESS_PROOF` is optional. Attempting to verify without both required documents returns `400`.
+
+### 8.7 Upload or replace a KYC document
+
+`POST /api/customers/me/kyc/documents` - CUSTOMER - success `201`
+
+This is a `multipart/form-data` request, not JSON. The KYC identity details from section 8.3 must exist first.
+
+| Multipart field | Part type | Required | Value |
+|---|---|---:|---|
+| `documentType` | Text | Yes | `AADHAAR`, `PAN`, or `ADDRESS_PROOF` |
+| `file` | File | Yes | PDF, JPG/JPEG, or PNG |
+
+Do not manually set the request-level `Content-Type` header. `FormData` or the HTTP client must generate the multipart boundary.
+
+Browser example:
+
+```javascript
+const form = new FormData();
+form.append("documentType", "AADHAAR");
+form.append("file", selectedFile);
+
+const response = await fetch(`${API_BASE_URL}/api/customers/me/kyc/documents`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: form
+});
+```
+
+Constraints:
+
+- Maximum physical file size is currently 5 MB and is environment-configurable.
+- The filename extension, supplied media type, and basic file signature must agree.
+- Empty files and unsupported content return `400`.
+- A request rejected by the servlet-level multipart limit returns `413`.
+- One current document is allowed per customer and document type.
+- Uploading an existing type replaces its physical file and metadata while retaining its `documentId` and protected URL.
+- Upload/replace is blocked after KYC reaches `VERIFIED`.
+- Replacing a document while KYC is `REJECTED` automatically moves the overall KYC back to `PENDING` and clears `rejectionReason`.
+
+Response `data`:
+
+```json
+{
+  "documentId": "94d426a1-0d85-4fc5-975c-62974c03c738",
+  "userId": "22181253-86b4-4f2b-9844-852bdba978ed",
+  "documentType": "AADHAAR",
+  "originalFileName": "aadhaar.pdf",
+  "contentType": "application/pdf",
+  "fileSize": 284312,
+  "documentUrl": "http://localhost:8080/api/customers/me/kyc/documents/94d426a1-0d85-4fc5-975c-62974c03c738/content",
+  "uploadedAt": "2026-08-06T10:30:00Z",
+  "updatedAt": "2026-08-06T10:30:00Z"
+}
+```
+
+The frontend must treat `documentId`, `userId`, and `documentUrl` as opaque server values. Physical volume paths and generated stored filenames are intentionally not returned.
+
+### 8.8 List the current customer's KYC documents
+
+`GET /api/customers/me/kyc/documents` - CUSTOMER - success `200`
+
+Returns `data[]` containing the document metadata described in section 8.7. The backend derives ownership from JWT `sub`; there is no customer-supplied `userId` query parameter.
+
+Use this response to determine whether the customer has uploaded required types. The frontend may show "ready for review" when both `AADHAAR` and `PAN` are present, but the backend remains authoritative.
+
+### 8.9 Display or download a customer KYC document
+
+`GET /api/customers/me/kyc/documents/{documentId}/content` - document owner - success `200` binary
+
+This protected URL returns the actual PDF/image with its stored media type and an inline `Content-Disposition` filename. It is not a public static URL and always requires the customer's JWT.
+
+A normal `<img src="...">`, `<iframe src="...">`, or direct browser navigation cannot attach a bearer header. Fetch the file as a Blob first:
+
+```javascript
+const response = await fetch(document.documentUrl, {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+if (!response.ok) {
+  throw await toApiError(response);
+}
+
+const blob = await response.blob();
+const objectUrl = URL.createObjectURL(blob);
+
+// Use objectUrl as an image src, PDF viewer URL, or download link.
+// Later, when the preview closes or the component unmounts:
+// URL.revokeObjectURL(objectUrl);
+```
+
+The frontend must not assume that knowing a `documentId` grants access. A document that is absent or owned by another customer returns ownership-safe `404`.
+
+### 8.10 Delete a customer KYC document
+
+`DELETE /api/customers/me/kyc/documents/{documentId}` - document owner - success `204`, no body
+
+This removes both database metadata and the stored physical file. Deletion is allowed only while KYC is `PENDING` or `REJECTED`; it returns `400` after verification. Never attempt to parse a JSON response for the successful `204` case.
+
+### 8.11 Administrator KYC review queue
+
+`GET /api/customers/kyc/reviews?status={status}` - ADMIN - success `200`
+
+`status` is optional:
+
+| Variation | Purpose |
+|---|---|
+| Omit `status` | All KYC review summaries |
+| `?status=PENDING` | Customers awaiting review or re-review |
+| `?status=VERIFIED` | Approved customers |
+| `?status=REJECTED` | Rejected customers awaiting correction |
+
+An invalid enum value returns `400`. This endpoint returns metadata only; it deliberately does not load every sensitive document file.
+
+Response item:
+
+```json
+{
+  "kycId": "c74d979b-e7fc-48bf-a439-f77d31311b90",
+  "userId": "22181253-86b4-4f2b-9844-852bdba978ed",
+  "status": "PENDING",
+  "rejectionReason": null,
+  "documentCount": 2,
+  "uploadedDocumentTypes": ["AADHAAR", "PAN"],
+  "createdAt": "2026-08-06T10:00:00Z",
+  "updatedAt": "2026-08-06T10:30:00Z"
+}
+```
+
+Use the returned APP_USER `userId`, not `kycId` or `customerId`, in the admin document routes below.
+
+### 8.12 Administrator lists one customer's documents
+
+`GET /api/customers/{userId}/kyc/documents` - ADMIN - success `200`
+
+Every admin document request deliberately includes the customer `userId`; there is no broad endpoint that returns all customers' document files. The returned metadata uses an admin-specific protected URL:
+
+```text
+http://localhost:8080/api/customers/{userId}/kyc/documents/{documentId}/content
+```
+
+### 8.13 Administrator displays one customer's document
+
+`GET /api/customers/{userId}/kyc/documents/{documentId}/content` - ADMIN - success `200` binary
+
+The backend verifies both values as a pair. If `documentId` belongs to a different customer than `userId`, the response is `404`. Fetch and display it as a Blob using the same approach as section 8.9, but with the admin JWT.
+
+### 8.14 Required frontend KYC lifecycle
+
+The frontend should call the APIs in this order:
+
+1. Customer logs in and obtains a customer JWT.
+2. Customer completes `PUT /api/customers/me` when the profile is incomplete.
+3. Customer submits identity values with `PUT /api/customers/me/kyc`; KYC becomes `PENDING`.
+4. Customer uploads `AADHAAR` with `POST /api/customers/me/kyc/documents`.
+5. Customer uploads `PAN` using the same endpoint. `ADDRESS_PROOF` may be uploaded optionally.
+6. Customer calls `GET /api/customers/me/kyc/documents` to confirm the current documents and retain their protected URLs.
+7. Admin calls `GET /api/customers/kyc/reviews?status=PENDING` and selects a `userId`.
+8. Admin calls `GET /api/customers/{userId}/kyc/documents`.
+9. Admin fetches each returned content URL with the admin bearer token.
+10. Admin either verifies or rejects using `PUT /api/customers/{userId}/kyc/status`.
+
+Approval path:
+
+```text
+PENDING -> admin reviews Aadhaar/PAN -> VERIFIED -> documents become read-only
+```
+
+Rejection and correction path:
+
+```text
+PENDING
+  -> admin sends REJECTED with a reason
+  -> customer reads GET /api/customers/me/kyc
+  -> customer replaces the rejected document type
+  -> backend automatically returns KYC to PENDING
+  -> admin reviews again
+  -> VERIFIED or REJECTED
+```
+
+Frontend state rules:
+
+- Always render the server's KYC `status`; do not infer approval only from document count.
+- Show `rejectionReason` when status is `REJECTED`.
+- Allow document replacement for `PENDING` and `REJECTED`.
+- Hide or disable upload/delete controls for `VERIFIED`, while still handling a backend `400` in case UI state is stale.
+- Refresh both `GET /api/customers/me/kyc` and `GET /api/customers/me/kyc/documents` after upload/replacement.
+- After an admin decision, refresh the selected review queue and customer summary.
+- Customer document content URLs and admin document content URLs are role-specific; use the URL returned by the corresponding list API.
+
+### 8.15 KYC document status and error handling
+
+| Status | Frontend meaning |
+|---:|---|
+| `200` | Metadata/status returned or binary file streamed |
+| `201` | Document uploaded or replaced |
+| `204` | Document deleted; do not parse a body |
+| `400` | Invalid document, invalid enum/lifecycle action, or required Aadhaar/PAN missing at verification |
+| `401` | Missing, invalid, expired, or inactive-session JWT; return to login |
+| `403` | Authenticated user lacks ADMIN permission |
+| `404` | KYC/document missing or ownership/user-document pairing failed |
+| `413` | Multipart request is larger than the configured request limit |
+| `500` | Persistent file storage operation failed |
+
 ## 9. Branch APIs
 
 All require authentication.
@@ -1491,6 +1699,13 @@ This index is a final coverage checklist.
 - `PUT /api/customers/me`
 - `PUT /api/customers/me/kyc`
 - `GET /api/customers/me/kyc`
+- `POST /api/customers/me/kyc/documents`
+- `GET /api/customers/me/kyc/documents`
+- `GET /api/customers/me/kyc/documents/{documentId}/content`
+- `DELETE /api/customers/me/kyc/documents/{documentId}`
+- `GET /api/customers/kyc/reviews`
+- `GET /api/customers/{userId}/kyc/documents`
+- `GET /api/customers/{userId}/kyc/documents/{documentId}/content`
 - `GET /api/customers/{id}`
 - `PUT /api/customers/{userId}/kyc/status`
 - `GET /api/branches`
@@ -1626,6 +1841,9 @@ This index is a final coverage checklist.
 - Use decimal-safe handling for money.
 - Poll report jobs with capped backoff and terminate polling at terminal state.
 - Download reports as Blob/binary and honor `Content-Disposition`.
+- Upload KYC documents with `FormData`; do not manually set the multipart `Content-Type` boundary.
+- Fetch protected KYC document URLs as Blob/binary with the appropriate customer or admin bearer token.
+- Keep KYC status and document metadata as separate frontend state and refresh both after replacement.
 - Display masked account/card/loan values exactly as returned; never attempt to reconstruct secrets.
 - Refresh authoritative balances and histories after completed workflows.
 - Do not replace an unresolved workflow with a new idempotency key.
