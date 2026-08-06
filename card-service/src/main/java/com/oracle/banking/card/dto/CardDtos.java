@@ -6,6 +6,8 @@ import com.oracle.banking.card.entity.CardApplicationStatus;
 import com.oracle.banking.card.entity.CardProduct;
 import com.oracle.banking.card.entity.CardStatus;
 import com.oracle.banking.card.entity.CardType;
+import com.oracle.banking.card.entity.CreditCardAccount;
+import com.oracle.banking.card.entity.CreditCardAccountStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,14 +27,17 @@ public final class CardDtos {
     ) {}
 
     public record CardProductResponse(
+            CardType cardType,
             CardProduct code,
             String label,
             BigDecimal minimumAnnualIncome,
-            BigDecimal defaultDailyLimit
+            BigDecimal defaultDailyLimit,
+            BigDecimal defaultCreditLimit
     ) {}
 
     public record CardApplicationRequest(
             @NotBlank @Size(max = 36) String accountId,
+            CardType cardType,
             @NotNull CardProduct cardProduct,
             @NotNull @DecimalMin("0.00") BigDecimal annualIncome,
             @Size(max = 120) String occupation,
@@ -60,6 +65,7 @@ public final class CardDtos {
             String deliveryAddress,
             BigDecimal requestedDailyLimit,
             BigDecimal approvedDailyLimit,
+            BigDecimal approvedCreditLimit,
             CardApplicationStatus status,
             String rejectionReason,
             String decisionNotes,
@@ -74,7 +80,7 @@ public final class CardDtos {
                     application.getApplicationId(), application.getCustomerUserId(), application.getAccountId(),
                     application.getCardType(), application.getCardProduct(), application.getAnnualIncome(),
                     application.getOccupation(), application.getDeliveryAddress(), application.getRequestedDailyLimit(),
-                    application.getApprovedDailyLimit(), application.getStatus(), application.getRejectionReason(),
+                    application.getApprovedDailyLimit(), application.getApprovedCreditLimit(), application.getStatus(), application.getRejectionReason(),
                     application.getDecisionNotes(), application.getIssuedCardId(), application.getDecidedByUserId(),
                     application.getCreatedAt(), application.getUpdatedAt(), application.getDecidedAt());
         }
@@ -135,4 +141,35 @@ public final class CardDtos {
             BigDecimal availableBalance,
             boolean active
     ) {}
+
+    public record CreditCardAccountResponse(
+            String creditAccountId,
+            String cardId,
+            String customerUserId,
+            String linkedAccountId,
+            CardProduct cardProduct,
+            BigDecimal creditLimit,
+            BigDecimal availableCredit,
+            BigDecimal outstandingBalance,
+            int billingCycleDay,
+            CreditCardAccountStatus status,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        public static CreditCardAccountResponse from(CreditCardAccount account) {
+            return new CreditCardAccountResponse(
+                    account.getCreditAccountId(),
+                    account.getCardId(),
+                    account.getCustomerUserId(),
+                    account.getLinkedAccountId(),
+                    account.getCardProduct(),
+                    account.getCreditLimit(),
+                    account.getAvailableCredit(),
+                    account.getOutstandingBalance(),
+                    account.getBillingCycleDay(),
+                    account.getStatus(),
+                    account.getCreatedAt(),
+                    account.getUpdatedAt());
+        }
+    }
 }

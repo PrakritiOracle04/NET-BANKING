@@ -18,6 +18,7 @@ import com.oracle.banking.card.exception.CardExceptions.Conflict;
 import com.oracle.banking.card.exception.CardExceptions.NotFound;
 import com.oracle.banking.card.repository.CardApplicationRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,55 +34,95 @@ public class CardApplicationService {
 
     private final CardApplicationRepository repository;
     private final CardService cardService;
+    private final CreditCardAccountService creditAccounts;
     private final CardEventPublisher events;
-    private final Map<CardProduct, BigDecimal> minimumIncome;
-    private final Map<CardProduct, BigDecimal> defaultLimits;
+    private final Map<CardProduct, BigDecimal> debitMinimumIncome;
+    private final Map<CardProduct, BigDecimal> creditMinimumIncome;
+    private final Map<CardProduct, BigDecimal> defaultDailyLimits;
+    private final Map<CardProduct, BigDecimal> defaultCreditLimits;
+    private final int defaultBillingCycleDay;
 
     public CardApplicationService(
             CardApplicationRepository repository,
             CardService cardService,
+            CreditCardAccountService creditAccounts,
             CardEventPublisher events,
             @Value("${card.products.classic.minimum-annual-income}") BigDecimal classicMinimumIncome,
             @Value("${card.products.gold.minimum-annual-income}") BigDecimal goldMinimumIncome,
             @Value("${card.products.platinum.minimum-annual-income}") BigDecimal platinumMinimumIncome,
             @Value("${card.products.classic.default-daily-limit}") BigDecimal classicDefaultLimit,
             @Value("${card.products.gold.default-daily-limit}") BigDecimal goldDefaultLimit,
-            @Value("${card.products.platinum.default-daily-limit}") BigDecimal platinumDefaultLimit) {
+            @Value("${card.products.platinum.default-daily-limit}") BigDecimal platinumDefaultLimit,
+            @Value("${card.credit-products.classic.minimum-annual-income}") BigDecimal classicCreditMinimumIncome,
+            @Value("${card.credit-products.gold.minimum-annual-income}") BigDecimal goldCreditMinimumIncome,
+            @Value("${card.credit-products.platinum.minimum-annual-income}") BigDecimal platinumCreditMinimumIncome,
+            @Value("${card.credit-products.classic.default-credit-limit}") BigDecimal classicCreditLimit,
+            @Value("${card.credit-products.gold.default-credit-limit}") BigDecimal goldCreditLimit,
+            @Value("${card.credit-products.platinum.default-credit-limit}") BigDecimal platinumCreditLimit,
+            @Value("${card.credit-products.default-billing-cycle-day}") int defaultBillingCycleDay) {
         this.repository = repository;
         this.cardService = cardService;
+        this.creditAccounts = creditAccounts;
         this.events = events;
-        this.minimumIncome = Map.of(
+        this.debitMinimumIncome = Map.of(
                 CardProduct.CLASSIC, classicMinimumIncome,
                 CardProduct.GOLD, goldMinimumIncome,
                 CardProduct.PLATINUM, platinumMinimumIncome);
-        this.defaultLimits = Map.of(
+        this.creditMinimumIncome = Map.of(
+                CardProduct.CLASSIC, classicCreditMinimumIncome,
+                CardProduct.GOLD, goldCreditMinimumIncome,
+                CardProduct.PLATINUM, platinumCreditMinimumIncome);
+        this.defaultDailyLimits = Map.of(
                 CardProduct.CLASSIC, classicDefaultLimit,
                 CardProduct.GOLD, goldDefaultLimit,
                 CardProduct.PLATINUM, platinumDefaultLimit);
+        this.defaultCreditLimits = Map.of(
+                CardProduct.CLASSIC, classicCreditLimit,
+                CardProduct.GOLD, goldCreditLimit,
+                CardProduct.PLATINUM, platinumCreditLimit);
+        this.defaultBillingCycleDay = defaultBillingCycleDay;
     }
 
     public List<CardProductResponse> products() {
-        return List.of(CardProduct.CLASSIC, CardProduct.GOLD, CardProduct.PLATINUM).stream()
-                .map(product -> new CardProductResponse(product, label(product), minimumIncome.get(product), defaultLimits.get(product)))
-                .toList();
+        List<CardProductResponse> products = new ArrayList<>();
+        for (CardProduct product : List.of(CardProduct.CLASSIC, CardProduct.GOLD, CardProduct.PLATINUM)) {
+            products.add(new CardProductResponse(
+                    CardType.DEBIT,
+                    product,
+                    label(CardType.DEBIT, product),
+                    debitMinimumIncome.get(product),
+                    defaultDailyLimits.get(product),
+                    null));
+            products.add(new CardProductResponse(
+                    CardType.CREDIT,
+                    product,
+                    label(CardType.CREDIT, product),
+                    creditMinimumIncome.get(product),
+                    defaultDailyLimits.get(product),
+                    defaultCreditLimits.get(product)));
+        }
+        return products;
     }
 
     @Transactional
     public CardApplicationResponse apply(String customerUserId, CardApplicationRequest request) {
+        CardType cardType = request.cardType() == null ? CardType.DEBIT : request.cardType();
         AccountValidationResponse account = cardService.validateAccount(request.accountId());
         if (!account.active()) throw new BadRequest("Card can be requested only for an active account");
         if (!customerUserId.equals(account.customerUserId())) throw new BadRequest("Customer user ID does not own the account");
-        if (cardService.hasNonExpiredCard(request.accountId())) throw new Conflict("A non-expired card already exists for this account");
-        if (repository.existsByCustomerUserIdAndAccountIdAndStatusIn(customerUserId, request.accountId(), OPEN_STATUSES)) {
-            throw new Conflict("A pending card application already exists for this account");
+        if (cardService.hasNonExpiredCard(request.accountId(), cardType)) {
+            throw new Conflict("A non-expired " + cardType.name().toLowerCase() + " card already exists for this account");
         }
-        validateProductEligibility(request.cardProduct(), request.annualIncome());
+        if (repository.existsByCustomerUserIdAndAccountIdAndCardTypeAndStatusIn(customerUserId, request.accountId(), cardType, OPEN_STATUSES)) {
+            throw new Conflict("A pending " + cardType.name().toLowerCase() + " card application already exists for this account");
+        }
+        validateProductEligibility(cardType, request.cardProduct(), request.annualIncome());
         if (request.requestedDailyLimit() != null) cardService.validateLimit(request.requestedDailyLimit());
 
         CardApplication application = new CardApplication();
         application.setCustomerUserId(customerUserId);
         application.setAccountId(request.accountId());
-        application.setCardType(CardType.DEBIT);
+        application.setCardType(cardType);
         application.setCardProduct(request.cardProduct());
         application.setAnnualIncome(request.annualIncome());
         application.setOccupation(trimToNull(request.occupation()));
@@ -91,7 +132,7 @@ public class CardApplicationService {
         events.publishApplication(
                 "card-application-submitted",
                 saved,
-                "Your debit card application has been submitted for review.",
+                "Your " + cardType.name().toLowerCase() + " card application has been submitted for review.",
                 "CARD_APPLICATION_RECEIVED");
         return CardApplicationResponse.from(saved);
     }
@@ -132,22 +173,34 @@ public class CardApplicationService {
         if (application.getStatus() != CardApplicationStatus.PENDING) {
             throw new Conflict("Only a pending card application can be approved");
         }
-        BigDecimal approvedLimit = request.approvedDailyLimit() == null
-                ? defaultLimits.get(application.getCardProduct())
+        BigDecimal approvedDailyLimit = request.approvedDailyLimit() == null
+                ? defaultDailyLimits.get(application.getCardProduct())
                 : request.approvedDailyLimit();
-        cardService.validateLimit(approvedLimit);
+        cardService.validateLimit(approvedDailyLimit);
+        BigDecimal approvedCreditLimit = application.getCardType() == CardType.CREDIT
+                ? defaultCreditLimits.get(application.getCardProduct())
+                : null;
         CardResponse card = cardService.issue(new CardIssueRequest(
                 application.getCustomerUserId(),
                 application.getAccountId(),
                 application.getCardType(),
                 application.getCardProduct(),
-                approvedLimit));
-        application.approve(adminUserId, card.cardId(), approvedLimit, trimToNull(request.notes()));
+                approvedDailyLimit));
+        if (application.getCardType() == CardType.CREDIT) {
+            creditAccounts.create(
+                    card.cardId(),
+                    card.customerUserId(),
+                    card.accountId(),
+                    card.cardProduct(),
+                    approvedCreditLimit,
+                    defaultBillingCycleDay);
+        }
+        application.approve(adminUserId, card.cardId(), approvedDailyLimit, approvedCreditLimit, trimToNull(request.notes()));
         CardApplication saved = repository.save(application);
         events.publishApplication(
                 "card-application-approved",
                 saved,
-                "Your debit card application was approved.",
+                "Your " + application.getCardType().name().toLowerCase() + " card application was approved.",
                 "CARD_APPLICATION_APPROVED");
         return CardApplicationResponse.from(saved);
     }
@@ -164,23 +217,26 @@ public class CardApplicationService {
         events.publishApplication(
                 "card-application-rejected",
                 saved,
-                "Your debit card application was rejected.",
+                "Your " + application.getCardType().name().toLowerCase() + " card application was rejected.",
                 "CARD_APPLICATION_REJECTED");
         return CardApplicationResponse.from(saved);
     }
 
-    private void validateProductEligibility(CardProduct product, BigDecimal annualIncome) {
-        BigDecimal requiredIncome = minimumIncome.get(product);
+    private void validateProductEligibility(CardType cardType, CardProduct product, BigDecimal annualIncome) {
+        BigDecimal requiredIncome = cardType == CardType.CREDIT
+                ? creditMinimumIncome.get(product)
+                : debitMinimumIncome.get(product);
         if (requiredIncome != null && annualIncome.compareTo(requiredIncome) < 0) {
-            throw new BadRequest("Annual income does not meet the minimum requirement for " + label(product));
+            throw new BadRequest("Annual income does not meet the minimum requirement for " + label(cardType, product));
         }
     }
 
-    private String label(CardProduct product) {
+    private String label(CardType cardType, CardProduct product) {
+        String suffix = cardType == CardType.CREDIT ? "Credit Card" : "Debit Card";
         return switch (product) {
-            case CLASSIC -> "Classic Debit Card";
-            case GOLD -> "Gold Debit Card";
-            case PLATINUM -> "Platinum Debit Card";
+            case CLASSIC -> "Classic " + suffix;
+            case GOLD -> "Gold " + suffix;
+            case PLATINUM -> "Platinum " + suffix;
         };
     }
 

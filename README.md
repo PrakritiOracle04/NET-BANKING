@@ -50,6 +50,7 @@ Provide database credentials for:
 
 Set the same strong Base64 JWT secret in `JWT_SECRET` for all protected services. Set a shared, non-default `INTERNAL_API_KEY` for internal service communication. Set `TWOFA_ENCRYPTION_KEY` to a separate 256-bit Base64 AES key in production.
 Set `CARD_ENCRYPTION_KEY` to another independent Base64 256-bit key. Card PAN values are encrypted with AES-GCM and are exposed only as masked values.
+Card debit and credit-card product eligibility/limits are environment-driven through `CARD_*` and `CREDIT_CARD_*` values; keep local values in the ignored `.env`.
 
 Every login creates a revocable Auth session and places its identifier in the JWT `sid` claim. The Gateway validates that session with Auth before routing every protected `/api/**` request. See `SESSION_MANAGEMENT.md` for login, expiry, logout, logout-all, failure behavior, and client requirements.
 

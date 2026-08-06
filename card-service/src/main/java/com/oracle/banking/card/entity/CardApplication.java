@@ -15,7 +15,7 @@ import java.util.UUID;
 import org.hibernate.annotations.Check;
 
 @Entity
-@Check(constraints = "ANNUAL_INCOME >= 0 AND (REQUESTED_DAILY_LIMIT IS NULL OR REQUESTED_DAILY_LIMIT > 0) AND (APPROVED_DAILY_LIMIT IS NULL OR APPROVED_DAILY_LIMIT > 0)")
+@Check(constraints = "ANNUAL_INCOME >= 0 AND (REQUESTED_DAILY_LIMIT IS NULL OR REQUESTED_DAILY_LIMIT > 0) AND (APPROVED_DAILY_LIMIT IS NULL OR APPROVED_DAILY_LIMIT > 0) AND (APPROVED_CREDIT_LIMIT IS NULL OR APPROVED_CREDIT_LIMIT > 0)")
 @Table(
         name = "CARD_APPLICATIONS",
         indexes = {
@@ -47,6 +47,9 @@ public class CardApplication {
 
     @Column(name = "APPROVED_DAILY_LIMIT", precision = 19, scale = 2)
     private BigDecimal approvedDailyLimit;
+
+    @Column(name = "APPROVED_CREDIT_LIMIT", precision = 19, scale = 2)
+    private BigDecimal approvedCreditLimit;
 
     @Column(name = "ANNUAL_INCOME", nullable = false, precision = 19, scale = 2)
     private BigDecimal annualIncome;
@@ -96,10 +99,11 @@ public class CardApplication {
         updatedAt = Instant.now();
     }
 
-    public void approve(String adminUserId, String cardId, BigDecimal limit, String notes) {
+    public void approve(String adminUserId, String cardId, BigDecimal dailyLimit, BigDecimal creditLimit, String notes) {
         status = CardApplicationStatus.APPROVED;
         issuedCardId = cardId;
-        approvedDailyLimit = limit;
+        approvedDailyLimit = dailyLimit;
+        approvedCreditLimit = creditLimit;
         decidedByUserId = adminUserId;
         decisionNotes = notes;
         decidedAt = Instant.now();
@@ -125,6 +129,7 @@ public class CardApplication {
     public BigDecimal getRequestedDailyLimit() { return requestedDailyLimit; }
     public void setRequestedDailyLimit(BigDecimal requestedDailyLimit) { this.requestedDailyLimit = requestedDailyLimit; }
     public BigDecimal getApprovedDailyLimit() { return approvedDailyLimit; }
+    public BigDecimal getApprovedCreditLimit() { return approvedCreditLimit; }
     public BigDecimal getAnnualIncome() { return annualIncome; }
     public void setAnnualIncome(BigDecimal annualIncome) { this.annualIncome = annualIncome; }
     public String getOccupation() { return occupation; }

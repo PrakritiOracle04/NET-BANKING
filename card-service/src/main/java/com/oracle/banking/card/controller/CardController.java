@@ -9,9 +9,11 @@ import com.oracle.banking.card.dto.CardDtos.CardLimitUpdateRequest;
 import com.oracle.banking.card.dto.CardDtos.CardProductResponse;
 import com.oracle.banking.card.dto.CardDtos.CardResponse;
 import com.oracle.banking.card.dto.CardDtos.CardStatusResponse;
+import com.oracle.banking.card.dto.CardDtos.CreditCardAccountResponse;
 import com.oracle.banking.card.entity.CardApplicationStatus;
 import com.oracle.banking.card.service.CardApplicationService;
 import com.oracle.banking.card.service.CardService;
+import com.oracle.banking.card.service.CreditCardAccountService;
 import com.oracle.banking.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,10 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class CardController {
     private final CardService service;
     private final CardApplicationService applicationService;
+    private final CreditCardAccountService creditAccounts;
 
-    public CardController(CardService service, CardApplicationService applicationService) {
+    public CardController(CardService service, CardApplicationService applicationService, CreditCardAccountService creditAccounts) {
         this.service = service;
         this.applicationService = applicationService;
+        this.creditAccounts = creditAccounts;
     }
 
     @GetMapping
@@ -99,6 +103,14 @@ public class CardController {
                 applicationId, authentication.getName(), request));
     }
 
+    @GetMapping("/credit-accounts")
+    ApiResponse<List<CreditCardAccountResponse>> creditAccounts(
+            Authentication authentication,
+            @RequestParam(required = false) String customerUserId) {
+        return ApiResponse.success("Credit card accounts", creditAccounts.accounts(
+                authentication.getName(), isAdmin(authentication), customerUserId));
+    }
+
     @GetMapping("/{id}")
     ApiResponse<CardResponse> card(@PathVariable String id, Authentication authentication) {
         return ApiResponse.success("Card", service.card(id, authentication.getName(), isAdmin(authentication)));
@@ -107,6 +119,12 @@ public class CardController {
     @GetMapping("/{id}/status")
     ApiResponse<CardStatusResponse> status(@PathVariable String id, Authentication authentication) {
         return ApiResponse.success("Card status", service.status(id, authentication.getName(), isAdmin(authentication)));
+    }
+
+    @GetMapping("/{id}/credit-account")
+    ApiResponse<CreditCardAccountResponse> creditAccount(@PathVariable String id, Authentication authentication) {
+        return ApiResponse.success("Credit card account", creditAccounts.byCard(
+                id, authentication.getName(), isAdmin(authentication)));
     }
 
     @PostMapping("/{id}/activate")

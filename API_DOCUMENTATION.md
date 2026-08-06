@@ -308,23 +308,39 @@ Workflow creates a durable `PENDING` payment, debits Account, records a `BILL_PA
 
 | Method and route | Access | Purpose |
 | --- | --- | --- |
-| `POST /api/cards` | ADMIN | Issue an inactive debit card for a matching active account (`201`) |
+| `GET /api/cards/products` | JWT | Debit and credit card product catalog for dropdowns |
+| `POST /api/cards/applications` | CUSTOMER | Submit a debit or credit card application for an owned account (`201`) |
+| `GET /api/cards/applications` | CUSTOMER | List own card applications |
+| `GET /api/cards/applications/{id}` | owner/ADMIN | Card application details |
+| `GET /api/cards/admin/applications?status=PENDING&page=0&size=50` | ADMIN | Review card applications |
+| `POST /api/cards/admin/applications/{id}/approve` | ADMIN | Approve application and issue an inactive card |
+| `POST /api/cards/admin/applications/{id}/reject` | ADMIN | Reject application with reason |
 | `GET /api/cards` | JWT | List own cards; ADMIN may filter `customerUserId` |
 | `GET /api/cards/{id}` | owner/ADMIN | Masked card details |
 | `GET /api/cards/{id}/status` | owner/ADMIN | Safe card status summary |
+| `GET /api/cards/credit-accounts` | owner/ADMIN | Credit-card account summaries; ADMIN may filter `customerUserId` |
+| `GET /api/cards/{id}/credit-account` | owner/ADMIN | Credit-card account linked to a card |
 | `POST /api/cards/{id}/activate` | owner | `INACTIVE -> ACTIVE` |
 | `POST /api/cards/{id}/block` | owner/ADMIN | `INACTIVE/ACTIVE -> BLOCKED` |
 | `POST /api/cards/{id}/unblock` | owner/ADMIN | `BLOCKED -> ACTIVE` |
 | `PUT /api/cards/{id}/limit` | owner | Update positive configured-range daily limit |
 
-Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with AES-256-GCM, stores an HMAC fingerprint for uniqueness, and returns only `************1234`. CVV and PIN are not stored or implemented.
+Card applications are now the frontend path. Direct `POST /api/cards` is intentionally retired from the public/frontend contract; card issuance happens through admin approval. Products support `DEBIT` and `CREDIT`. Only one pending application or non-expired card is allowed per account per card type, so one debit and one credit card may coexist for the same account.
+
+Card Service generates the 16-digit Luhn-valid PAN internally, encrypts it with AES-256-GCM, stores an HMAC fingerprint for uniqueness, and returns only `************1234`. CVV and PIN are not stored or implemented. Credit-card approval also creates a credit-card account record with configured limit, available credit, outstanding balance, billing-cycle day, and status.
 
 ### Loans
 
 | Method and route | Access | Purpose |
 | --- | --- | --- |
-| `POST /api/loans` | ADMIN | Register an approved/disbursed loan and generate EMI schedule (`201`) |
 | `GET /api/loans/types` | JWT | Loan type catalog for frontend dropdowns |
+| `POST /api/loans/applications` | CUSTOMER | Submit a loan application for an owned linked account (`201`) |
+| `GET /api/loans/applications` | CUSTOMER | List own loan applications |
+| `GET /api/loans/applications/{id}` | owner/ADMIN | Loan application details |
+| `GET /api/loans/admin/applications?status=PENDING&page=0&size=50` | ADMIN | Review loan applications |
+| `POST /api/loans/admin/applications/{id}/approve` | ADMIN | Approve application, issue loan, and generate EMI schedule |
+| `POST /api/loans/admin/applications/{id}/reject` | ADMIN | Reject application with reason |
+| `POST /api/loans` | ADMIN/internal | Directly register an already approved/disbursed loan; not part of the frontend customer flow |
 | `POST /api/loans/calculate` | JWT | Calculate EMI and preview schedule |
 | `GET /api/loans` | owner/ADMIN | Own loans; ADMIN may filter `customerUserId` and `status` |
 | `GET /api/loans/{id}` | owner/ADMIN | Loan details |
