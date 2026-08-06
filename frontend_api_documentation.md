@@ -1078,11 +1078,88 @@ Payments are created through `POST /api/banking/bill-payments`, not through this
 
 ## 15. Card APIs
 
-Card type: `DEBIT`. Statuses: `INACTIVE`, `ACTIVE`, `BLOCKED`, `EXPIRED`.
+Card types: `DEBIT`, `CREDIT`. Statuses: `INACTIVE`, `ACTIVE`, `BLOCKED`, `EXPIRED`.
 
 Sensitive card numbers are never returned; responses contain `maskedCardNumber`.
 
-### 15.1 List cards
+### 15.1 Card products
+
+`GET /api/cards/products` - Authenticated - success `200`
+
+Use this endpoint for the card product dropdown. It returns debit and credit variants for each product tier.
+
+Example response item:
+
+```json
+{
+  "cardType": "CREDIT",
+  "code": "GOLD",
+  "label": "Gold Credit Card",
+  "minimumAnnualIncome": 600000,
+  "defaultDailyLimit": 25000,
+  "defaultCreditLimit": 100000
+}
+```
+
+For debit products, `defaultCreditLimit` is `null`.
+
+### 15.2 Submit card application
+
+`POST /api/cards/applications` - CUSTOMER - success `201`
+
+The backend uses the logged-in JWT user. Do not send `customerUserId` from the frontend.
+
+```json
+{
+  "accountId": "ACCOUNT_ID",
+  "cardType": "CREDIT",
+  "cardProduct": "GOLD",
+  "annualIncome": 700000,
+  "occupation": "Software Engineer",
+  "deliveryAddress": "Home address",
+  "requestedDailyLimit": 25000
+}
+```
+
+`cardType` can be `DEBIT` or `CREDIT`. If omitted, backend treats it as `DEBIT` for backward compatibility.
+
+Only one pending application or non-expired card can exist per account per card type. One debit card and one credit card may exist for the same account, but two active credit cards for the same account are rejected with `409`.
+
+### 15.3 My card applications
+
+- `GET /api/cards/applications` - CUSTOMER - success `200`
+- `GET /api/cards/applications/{id}` - Owner or ADMIN - success `200`
+
+Application fields include `applicationId`, `customerUserId`, `accountId`, `cardType`, `cardProduct`, `annualIncome`, `occupation`, `deliveryAddress`, `requestedDailyLimit`, `approvedDailyLimit`, `approvedCreditLimit`, `status`, `rejectionReason`, `decisionNotes`, `issuedCardId`, `decidedByUserId`, `createdAt`, `updatedAt`, and `decidedAt`.
+
+### 15.4 Admin card application review
+
+- `GET /api/cards/admin/applications?status=PENDING&page=0&size=50` - ADMIN - success `200`
+- `POST /api/cards/admin/applications/{id}/approve` - ADMIN - success `200`
+- `POST /api/cards/admin/applications/{id}/reject` - ADMIN - success `200`
+
+Approve body:
+
+```json
+{
+  "approvedDailyLimit": 25000,
+  "notes": "Approved after review"
+}
+```
+
+Reject body:
+
+```json
+{
+  "reason": "Eligibility criteria not met"
+}
+```
+
+Approval creates an `INACTIVE` card. Credit-card approval also creates a linked credit-card account with configured product credit limit.
+
+Direct `POST /api/cards` is retired from the frontend contract. The customer-facing path is application submission plus admin approval.
+
+### 15.5 List cards
 
 `GET /api/cards` — Authenticated — success `200`
 
@@ -1090,7 +1167,7 @@ Sensitive card numbers are never returned; responses contain `maskedCardNumber`.
 - ADMIN without filter: all cards.
 - ADMIN with `?customerUserId={id}`: cards for that user.
 
-### 15.2 Get card/detail status
+### 15.6 Get card/detail status
 
 - `GET /api/cards/{id}` — Owner or ADMIN — `200`
 - `GET /api/cards/{id}/status` — Owner or ADMIN — `200`
@@ -1099,9 +1176,11 @@ Detail fields: `cardId`, `customerUserId`, `accountId`, `maskedCardNumber`, `car
 
 Status response is the smaller subset: `cardId`, `maskedCardNumber`, `status`, `dailyTransactionLimit`, `expiryMonth`, `expiryYear`.
 
-### 15.3 Issue card
+### 15.7 Legacy direct issue route
 
 `POST /api/cards` — ADMIN — success `201`
+
+This route is retained only as a backend/admin compatibility route. Frontend teams should not use it for new card issuance. Use `POST /api/cards/applications` and admin approval instead.
 
 ```json
 {
@@ -1114,13 +1193,22 @@ Status response is the smaller subset: `cardId`, `maskedCardNumber`, `status`, `
 
 The account must be active and owned by `customerUserId`; a non-expired card must not already exist for it.
 
-### 15.4 Activate card
+### 15.8 Credit-card accounts
+
+- `GET /api/cards/credit-accounts` - CUSTOMER/ADMIN - success `200`
+- `GET /api/cards/{id}/credit-account` - Owner or ADMIN - success `200`
+
+ADMIN may call `GET /api/cards/credit-accounts?customerUserId={id}`.
+
+Credit-account fields include `creditAccountId`, `cardId`, `customerUserId`, `accountId`, `cardProduct`, `creditLimit`, `availableCredit`, `outstandingBalance`, `billingCycleDay`, `status`, `createdAt`, and `updatedAt`.
+
+### 15.9 Activate card
 
 `POST /api/cards/{id}/activate` — Owner — success `200`; no request body. Returns the updated card response.
 
 Only an `INACTIVE` card can be activated.
 
-### 15.5 Block card
+### 15.10 Block card
 
 `POST /api/cards/{id}/block` — Owner or ADMIN — success `200`
 
@@ -1136,13 +1224,13 @@ Body is optional. Both calls are valid:
 
 Reason maximum: 240 characters. The card must be in a blockable state.
 
-### 15.6 Unblock card
+### 15.11 Unblock card
 
 `POST /api/cards/{id}/unblock` — Owner or ADMIN — success `200`; no request body. Returns the updated card response.
 
 Only a `BLOCKED` card can be unblocked.
 
-### 15.7 Change daily limit
+### 15.12 Change daily limit
 
 `PUT /api/cards/{id}/limit` — Owner — success `200`
 
@@ -1162,7 +1250,7 @@ EMI statuses: `PENDING`, `PARTIALLY_PAID`, `PAID`, `OVERDUE`.
 
 Repayment statuses: `PENDING`, `SUCCESS`, `CANCELLED`, `FAILED`, `REVERSED`.
 
-### 16.1 Register a loan
+### 16.1 Backend/admin direct loan registration
 
 `POST /api/loans` — ADMIN — success `201`
 
@@ -1180,7 +1268,67 @@ Repayment statuses: `PENDING`, `SUCCESS`, `CANCELLED`, `FAILED`, `REVERSED`.
 
 Principal > 0; interest >= 0; tenure 1-360; start date is optional. The server generates the loan number, EMI amount, maturity date, and EMI schedule.
 
-### 16.2 List loans
+This route is retained for backend/admin compatibility. Frontend customer flows should use `POST /api/loans/applications` and admin approval instead of direct loan registration.
+
+### 16.2 Loan-type options
+
+`GET /api/loans/types` - Authenticated - success `200`
+
+Returns `[{ "code": "HOME", "label": "Home" }, ...]`. Prefer this endpoint for dropdown options instead of hardcoding display labels.
+
+### 16.3 Submit loan application
+
+`POST /api/loans/applications` - CUSTOMER - success `201`
+
+The backend uses the logged-in JWT user. Do not send `customerUserId` from the frontend.
+
+```json
+{
+  "linkedAccountId": "ACCOUNT_ID",
+  "loanType": "HOME",
+  "requestedAmount": 100000,
+  "tenureMonths": 12,
+  "monthlyIncome": 50000,
+  "employmentType": "SALARIED",
+  "purpose": "Home renovation"
+}
+```
+
+### 16.4 My loan applications
+
+- `GET /api/loans/applications` - CUSTOMER - success `200`
+- `GET /api/loans/applications/{id}` - Owner or ADMIN - success `200`
+
+Application fields include `applicationId`, `customerUserId`, `linkedAccountId`, `loanType`, `requestedAmount`, `requestedTenureMonths`, `monthlyIncome`, `employmentType`, `purpose`, `approvedAmount`, `approvedAnnualInterestRate`, `approvedTenureMonths`, `status`, `rejectionReason`, `decisionNotes`, `issuedLoanId`, `decidedByUserId`, `createdAt`, `updatedAt`, and `decidedAt`.
+
+### 16.5 Admin loan application review
+
+- `GET /api/loans/admin/applications?status=PENDING&page=0&size=50` - ADMIN - success `200`
+- `POST /api/loans/admin/applications/{id}/approve` - ADMIN - success `200`
+- `POST /api/loans/admin/applications/{id}/reject` - ADMIN - success `200`
+
+Approve body:
+
+```json
+{
+  "approvedAmount": 100000,
+  "approvedAnnualInterestRate": 10.5,
+  "approvedTenureMonths": 12,
+  "notes": "Approved after review"
+}
+```
+
+Reject body:
+
+```json
+{
+  "reason": "Eligibility criteria not met"
+}
+```
+
+Approval issues the loan and generates the EMI schedule.
+
+### 16.6 List loans
 
 `GET /api/loans` — Authenticated — success `200`
 
@@ -1191,26 +1339,20 @@ Optional: `customerUserId`, `status`.
 
 Summary fields: `loanId`, `customerUserId`, `linkedAccountId`, `loanNumber`, `loanType`, `principalAmount`, `emiAmount`, `outstandingBalance`, `status`, `startDate`, `maturityDate`.
 
-### 16.3 Loan-type options
-
-`GET /api/loans/types` — Authenticated — success `200`
-
-Returns `[{ "code": "HOME", "label": "Home" }, ...]`. Prefer this endpoint for dropdown options instead of hardcoding display labels.
-
-### 16.4 Loan details and balance
+### 16.7 Loan details and balance
 
 - `GET /api/loans/{id}` — Owner or ADMIN — `200`
 - `GET /api/loans/{id}/balance` — Owner or ADMIN — `200`
 
 Detail adds interest rate, tenure, created/updated/closed timestamps. Balance returns `loanId`, `loanNumber`, `loanType`, `outstandingBalance`, `emiAmount`, `status`.
 
-### 16.5 EMI schedule
+### 16.8 EMI schedule
 
 `GET /api/loans/{id}/schedule` — Owner or ADMIN — success `200`
 
 Each item: `emiScheduleId`, `installmentNumber`, `dueDate`, `openingBalance`, `principalDue`, `interestDue`, `totalDue`, `amountPaid`, `status`, `paidAt`, `reminderSentAt`, `overdueNotifiedAt`.
 
-### 16.6 Repayment history
+### 16.9 Repayment history
 
 `GET /api/loans/{id}/history` — Owner or ADMIN — success `200`
 
@@ -1218,7 +1360,7 @@ Each item: `loanRepaymentId`, `loanId`, `customerUserId`, `sourceAccountId`, `am
 
 Make repayments through the Banking Workflow endpoint, not this route.
 
-### 16.7 Update loan status
+### 16.10 Update loan status
 
 `PUT /api/loans/{id}/status` — ADMIN — success `200`
 
@@ -1228,7 +1370,7 @@ Make repayments through the Banking Workflow endpoint, not this route.
 
 Closed loans cannot be reopened, and manual transition to `CLOSED` is rejected because closure occurs automatically when outstanding balance reaches zero.
 
-### 16.8 EMI calculator
+### 16.11 EMI calculator
 
 `POST /api/loans/calculate` — Authenticated — success `200`
 
@@ -1759,16 +1901,29 @@ This index is a final coverage checklist.
 ### Cards, loans, and schedules
 
 - `GET /api/cards`
+- `GET /api/cards/products`
+- `POST /api/cards/applications`
+- `GET /api/cards/applications`
+- `GET /api/cards/applications/{id}`
+- `GET /api/cards/admin/applications`
+- `POST /api/cards/admin/applications/{id}/approve`
+- `POST /api/cards/admin/applications/{id}/reject`
 - `GET /api/cards/{id}`
 - `GET /api/cards/{id}/status`
-- `POST /api/cards`
+- `GET /api/cards/credit-accounts`
+- `GET /api/cards/{id}/credit-account`
 - `POST /api/cards/{id}/activate`
 - `POST /api/cards/{id}/block`
 - `POST /api/cards/{id}/unblock`
 - `PUT /api/cards/{id}/limit`
-- `POST /api/loans`
 - `GET /api/loans`
 - `GET /api/loans/types`
+- `POST /api/loans/applications`
+- `GET /api/loans/applications`
+- `GET /api/loans/applications/{id}`
+- `GET /api/loans/admin/applications`
+- `POST /api/loans/admin/applications/{id}/approve`
+- `POST /api/loans/admin/applications/{id}/reject`
 - `GET /api/loans/{id}`
 - `GET /api/loans/{id}/balance`
 - `GET /api/loans/{id}/schedule`
