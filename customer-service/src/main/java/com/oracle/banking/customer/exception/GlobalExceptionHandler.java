@@ -3,6 +3,7 @@ package com.oracle.banking.customer.exception;
 import com.oracle.banking.customer.exception.CustomerExceptions.BadRequest;
 import com.oracle.banking.customer.exception.CustomerExceptions.Duplicate;
 import com.oracle.banking.customer.exception.CustomerExceptions.NotFound;
+import com.oracle.banking.customer.exception.CustomerExceptions.StorageFailure;
 import com.oracle.banking.customer.exception.CustomerExceptions.Unauthorized;
 import com.oracle.banking.shared.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,12 +11,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler({BadRequest.class, MethodArgumentNotValidException.class})
+    @ExceptionHandler({BadRequest.class, MethodArgumentNotValidException.class, MethodArgumentTypeMismatchException.class})
     ResponseEntity<ErrorResponse> badRequest(Exception exception, HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
     }
@@ -38,6 +41,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ErrorResponse> forbidden(AccessDeniedException exception, HttpServletRequest request) {
         return response(HttpStatus.FORBIDDEN, "Access denied", request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ErrorResponse> uploadTooLarge(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        return response(HttpStatus.PAYLOAD_TOO_LARGE, "Document exceeds the maximum allowed size", request);
+    }
+
+    @ExceptionHandler(StorageFailure.class)
+    ResponseEntity<ErrorResponse> storageFailure(StorageFailure exception, HttpServletRequest request) {
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
