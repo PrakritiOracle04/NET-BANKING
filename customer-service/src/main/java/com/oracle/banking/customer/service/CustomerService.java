@@ -10,11 +10,13 @@ import com.oracle.banking.customer.dto.CustomerDtos.Update;
 import com.oracle.banking.customer.entity.CustomerKyc;
 import com.oracle.banking.customer.entity.CustomerProfile;
 import com.oracle.banking.customer.entity.KycStatus;
+import com.oracle.banking.customer.entity.KycDocumentType;
 import com.oracle.banking.customer.exception.CustomerExceptions.BadRequest;
 import com.oracle.banking.customer.exception.CustomerExceptions.Duplicate;
 import com.oracle.banking.customer.exception.CustomerExceptions.NotFound;
 import com.oracle.banking.customer.repository.CustomerKycRepository;
 import com.oracle.banking.customer.repository.CustomerProfileRepository;
+import com.oracle.banking.customer.repository.KycDocumentRepository;
 import com.oracle.banking.customer.event.CustomerAuditPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,13 +27,15 @@ public class CustomerService {
     private final CustomerKycRepository kycRecords;
     private final KycCrypto crypto;
     private final CustomerAuditPublisher auditEvents;
+    private final KycDocumentRepository documents;
 
     public CustomerService(CustomerProfileRepository profiles, CustomerKycRepository kycRecords, KycCrypto crypto,
-            CustomerAuditPublisher auditEvents) {
+            CustomerAuditPublisher auditEvents, KycDocumentRepository documents) {
         this.profiles = profiles;
         this.kycRecords = kycRecords;
         this.crypto = crypto;
         this.auditEvents = auditEvents;
+        this.documents = documents;
     }
 
     @Transactional
@@ -92,6 +96,10 @@ public class CustomerService {
     public KycResponse updateKycStatus(String userId, KycStatusUpdate request) {
         CustomerKyc kyc = requiredKyc(userId);
         if (request.status() == KycStatus.VERIFIED) {
+            if (!documents.existsByUserIdAndDocumentType(userId, KycDocumentType.AADHAAR)
+                    || !documents.existsByUserIdAndDocumentType(userId, KycDocumentType.PAN)) {
+                throw new BadRequest("Aadhaar and PAN documents are required before KYC verification");
+            }
             kyc.verify();
         } else if (request.status() == KycStatus.REJECTED) {
             if (request.rejectionReason() == null || request.rejectionReason().isBlank()) {

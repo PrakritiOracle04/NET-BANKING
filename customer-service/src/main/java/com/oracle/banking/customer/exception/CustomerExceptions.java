@@ -18,4 +18,8 @@ public final class CustomerExceptions {
     public static class Unauthorized extends RuntimeException {
         public Unauthorized(String message) { super(message); }
     }
+
+    public static class StorageFailure extends RuntimeException {
+        public StorageFailure(String message, Throwable cause) { super(message, cause); }
+    }
 }
