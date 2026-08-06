@@ -23,14 +23,20 @@ public class CardKafkaPublisher {
             @Value("${card.events.activated-topic}") String activated,
             @Value("${card.events.blocked-topic}") String blocked,
             @Value("${card.events.unblocked-topic}") String unblocked,
-            @Value("${card.events.limit-updated-topic}") String limitUpdated) {
+            @Value("${card.events.limit-updated-topic}") String limitUpdated,
+            @Value("${card.events.application-submitted-topic}") String applicationSubmitted,
+            @Value("${card.events.application-approved-topic}") String applicationApproved,
+            @Value("${card.events.application-rejected-topic}") String applicationRejected) {
         this.kafka = kafka;
         this.topics = Map.of(
                 "card-issued", issued,
                 "card-activated", activated,
                 "card-blocked", blocked,
                 "card-unblocked", unblocked,
-                "card-limit-updated", limitUpdated);
+                "card-limit-updated", limitUpdated,
+                "card-application-submitted", applicationSubmitted,
+                "card-application-approved", applicationApproved,
+                "card-application-rejected", applicationRejected);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

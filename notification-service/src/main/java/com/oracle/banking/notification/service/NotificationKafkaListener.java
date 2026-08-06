@@ -37,7 +37,13 @@ public class NotificationKafkaListener {
             "card-blocked",
             "card-unblocked",
             "card-limit-updated",
+            "card-application-submitted",
+            "card-application-approved",
+            "card-application-rejected",
             "password-reset-request",
+            "loan-application-submitted",
+            "loan-application-approved",
+            "loan-application-rejected",
             "security-alert"
     })
     public void consume(Map<String, Object> event) {

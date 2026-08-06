@@ -22,7 +22,10 @@ import reactor.core.publisher.Mono;
 public class SessionAuthenticationFilter implements GlobalFilter, Ordered {
     private static final Set<String> PUBLIC_API_PATHS = Set.of(
             "/api/auth/register",
-            "/api/auth/login");
+            "/api/auth/login",
+            "/api/auth/password-reset/request",
+            "/api/auth/password-reset/verify",
+            "/api/auth/password-reset/confirm");
 
     private final SessionValidationClient sessions;
     private final ObjectMapper objectMapper;

@@ -70,6 +70,7 @@ POST /internal/accounts/open
 POST /internal/accounts/{id}/debit
 POST /internal/accounts/{id}/credit
 POST /internal/transactions
+POST /internal/notifications/email/template
 ```
 
 They require:
@@ -83,6 +84,7 @@ They are called directly through Compose DNS, for example:
 ```text
 http://customer-service:8083/internal/customers/...
 http://account-service:8085/internal/accounts/...
+http://notification-service:8089/internal/notifications/email/template
 ```
 
 They are not configured as Gateway routes. Therefore this should not work externally:

@@ -35,6 +35,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    ResponseEntity<ErrorResponse> unavailable(ServiceUnavailableException ex, HttpServletRequest request) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> generic(Exception ex, HttpServletRequest request) {
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);

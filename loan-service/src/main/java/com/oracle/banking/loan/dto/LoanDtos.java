@@ -2,13 +2,15 @@ package com.oracle.banking.loan.dto;
 
 import com.oracle.banking.loan.entity.EmiSchedule;
 import com.oracle.banking.loan.entity.EmiStatus;
+import com.oracle.banking.loan.entity.EmploymentType;
 import com.oracle.banking.loan.entity.Loan;
+import com.oracle.banking.loan.entity.LoanApplication;
+import com.oracle.banking.loan.entity.LoanApplicationStatus;
 import com.oracle.banking.loan.entity.LoanRepayment;
 import com.oracle.banking.loan.entity.LoanRepaymentStatus;
 import com.oracle.banking.loan.entity.LoanStatus;
 import com.oracle.banking.loan.entity.LoanType;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -27,17 +29,68 @@ public final class LoanDtos {
             @NotNull LoanType loanType,
             @NotNull @DecimalMin(value = "0.01") BigDecimal principalAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             LocalDate startDate) {}
 
     public record LoanTypeOption(String code, String label) {}
+
+    public record LoanApplicationRequest(
+            @NotBlank @Size(max = 36) String linkedAccountId,
+            @NotNull LoanType loanType,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal requestedAmount,
+            @Min(1) int tenureMonths,
+            @NotNull @DecimalMin(value = "0.00") BigDecimal monthlyIncome,
+            @NotNull EmploymentType employmentType,
+            @NotBlank @Size(max = 500) String purpose) {}
+
+    public record LoanApplicationApprovalRequest(
+            @NotNull @DecimalMin(value = "0.01") BigDecimal approvedAmount,
+            @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
+            @Min(1) int tenureMonths,
+            LocalDate startDate,
+            @Size(max = 500) String notes) {}
+
+    public record LoanApplicationRejectionRequest(@NotBlank @Size(max = 500) String reason) {}
+
+    public record LoanApplicationResponse(
+            String applicationId,
+            String customerUserId,
+            String linkedAccountId,
+            LoanType loanType,
+            BigDecimal requestedAmount,
+            int requestedTenureMonths,
+            BigDecimal monthlyIncome,
+            EmploymentType employmentType,
+            String purpose,
+            BigDecimal approvedAmount,
+            BigDecimal approvedAnnualInterestRate,
+            Integer approvedTenureMonths,
+            LoanApplicationStatus status,
+            String rejectionReason,
+            String decisionNotes,
+            String issuedLoanId,
+            String decidedByUserId,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant decidedAt) {
+        public static LoanApplicationResponse from(LoanApplication application) {
+            return new LoanApplicationResponse(
+                    application.getApplicationId(), application.getCustomerUserId(), application.getLinkedAccountId(),
+                    application.getLoanType(), application.getRequestedAmount(), application.getRequestedTenureMonths(),
+                    application.getMonthlyIncome(), application.getEmploymentType(), application.getPurpose(),
+                    application.getApprovedAmount(), application.getApprovedAnnualInterestRate(),
+                    application.getApprovedTenureMonths(), application.getStatus(), application.getRejectionReason(),
+                    application.getDecisionNotes(), application.getIssuedLoanId(), application.getDecidedByUserId(),
+                    application.getCreatedAt(), application.getUpdatedAt(), application.getDecidedAt());
+        }
+    }
 
     public record UpdateLoanStatusRequest(@NotNull LoanStatus status) {}
 
     public record CalculateEmiRequest(
             @NotNull @DecimalMin(value = "0.01") BigDecimal loanAmount,
             @NotNull @DecimalMin(value = "0.00") BigDecimal annualInterestRate,
-            @Min(1) @Max(360) int tenureMonths,
+            @Min(1) int tenureMonths,
             LocalDate startDate) {}
 
     public record LoanSummaryResponse(
@@ -220,6 +273,16 @@ public final class LoanDtos {
                     loan.getStatus());
         }
     }
+
+    public record AccountValidationResponse(
+            String accountId,
+            String customerUserId,
+            String accountNumber,
+            String branchIfsc,
+            String status,
+            BigDecimal availableBalance,
+            boolean active
+    ) {}
 
     public record InternalCreateLoanRepaymentRequest(
             @NotBlank @Size(max = 36) String loanId,

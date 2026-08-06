@@ -31,14 +31,26 @@ security:
 services:
   internal-api-key: ${INTERNAL_API_KEY}
   auth-service-url: ${AUTH_SERVICE_URL}
+  account-service-url: ${ACCOUNT_SERVICE_URL}
 
 loan:
   max-tenure-months: ${LOAN_MAX_TENURE_MONTHS}
+  eligibility:
+    minimum-monthly-income: ${LOAN_MIN_MONTHLY_INCOME}
+    max-amount:
+      home: ${LOAN_HOME_MAX_AMOUNT}
+      vehicle: ${LOAN_VEHICLE_MAX_AMOUNT}
+      personal: ${LOAN_PERSONAL_MAX_AMOUNT}
+      education: ${LOAN_EDUCATION_MAX_AMOUNT}
+      business: ${LOAN_BUSINESS_MAX_AMOUNT}
   events:
     loan-created-topic: loan-created
     emi-reminder-topic: emi-reminder
     loan-overdue-topic: loan-overdue
     loan-status-changed-topic: loan-status-changed
+    application-submitted-topic: ${LOAN_APPLICATION_SUBMITTED_TOPIC}
+    application-approved-topic: ${LOAN_APPLICATION_APPROVED_TOPIC}
+    application-rejected-topic: ${LOAN_APPLICATION_REJECTED_TOPIC}
   maintenance:
     emi-reminder-days-before: ${EMI_REMINDER_DAYS_BEFORE}
 

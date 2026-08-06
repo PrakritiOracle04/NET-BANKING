@@ -47,6 +47,10 @@ public class BankCard {
     private CardType cardType;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "CARD_PRODUCT", length = 20)
+    private CardProduct cardProduct;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", nullable = false, length = 20)
     private CardStatus status;
 
@@ -115,6 +119,8 @@ public class BankCard {
     public void setLastFourDigits(String lastFourDigits) { this.lastFourDigits = lastFourDigits; }
     public CardType getCardType() { return cardType; }
     public void setCardType(CardType cardType) { this.cardType = cardType; }
+    public CardProduct getCardProduct() { return cardProduct; }
+    public void setCardProduct(CardProduct cardProduct) { this.cardProduct = cardProduct; }
     public CardStatus getStatus() { return status; }
     public BigDecimal getDailyTransactionLimit() { return dailyTransactionLimit; }
     public void setDailyTransactionLimit(BigDecimal dailyTransactionLimit) { this.dailyTransactionLimit = dailyTransactionLimit; }
