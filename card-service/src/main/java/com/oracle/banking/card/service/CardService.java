@@ -8,6 +8,7 @@ import com.oracle.banking.card.dto.CardDtos.CardResponse;
 import com.oracle.banking.card.dto.CardDtos.CardStatusResponse;
 import com.oracle.banking.card.entity.BankCard;
 import com.oracle.banking.card.entity.CardStatus;
+import com.oracle.banking.card.entity.CardType;
 import com.oracle.banking.card.event.CardEventPublisher;
 import com.oracle.banking.card.exception.CardExceptions.BadRequest;
 import com.oracle.banking.card.exception.CardExceptions.Conflict;
@@ -82,8 +83,8 @@ public class CardService {
         if (!request.customerUserId().equals(account.customerUserId())) {
             throw new BadRequest("Customer user ID does not own the account");
         }
-        if (repository.existsByAccountIdAndStatusIn(request.accountId(), NON_EXPIRED)) {
-            throw new Conflict("A non-expired card already exists for this account");
+        if (repository.existsByAccountIdAndCardTypeAndStatusIn(request.accountId(), request.cardType(), NON_EXPIRED)) {
+            throw new Conflict("A non-expired " + request.cardType().name().toLowerCase() + " card already exists for this account");
         }
         String cardNumber = generateUniqueCardNumber();
         YearMonth expiry = YearMonth.now().plusYears(validityYears);
@@ -176,6 +177,14 @@ public class CardService {
         } catch (RestClientException exception) {
             throw new DownstreamFailure("Account Service is unavailable");
         }
+    }
+
+    boolean hasNonExpiredCard(String accountId) {
+        return repository.existsByAccountIdAndStatusIn(accountId, NON_EXPIRED);
+    }
+
+    boolean hasNonExpiredCard(String accountId, CardType cardType) {
+        return repository.existsByAccountIdAndCardTypeAndStatusIn(accountId, cardType, NON_EXPIRED);
     }
 
     private BankCard findAccessible(String id, String userId, boolean admin) {

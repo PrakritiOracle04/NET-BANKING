@@ -38,6 +38,30 @@ card:
     blocked-topic: card-blocked
     unblocked-topic: card-unblocked
     limit-updated-topic: card-limit-updated
+    application-submitted-topic: ${CARD_APPLICATION_SUBMITTED_TOPIC}
+    application-approved-topic: ${CARD_APPLICATION_APPROVED_TOPIC}
+    application-rejected-topic: ${CARD_APPLICATION_REJECTED_TOPIC}
+  products:
+    classic:
+      minimum-annual-income: ${CARD_CLASSIC_MIN_ANNUAL_INCOME}
+      default-daily-limit: ${CARD_CLASSIC_DEFAULT_DAILY_LIMIT}
+    gold:
+      minimum-annual-income: ${CARD_GOLD_MIN_ANNUAL_INCOME}
+      default-daily-limit: ${CARD_GOLD_DEFAULT_DAILY_LIMIT}
+    platinum:
+      minimum-annual-income: ${CARD_PLATINUM_MIN_ANNUAL_INCOME}
+      default-daily-limit: ${CARD_PLATINUM_DEFAULT_DAILY_LIMIT}
+  credit-products:
+    default-billing-cycle-day: ${CREDIT_CARD_DEFAULT_BILLING_CYCLE_DAY}
+    classic:
+      minimum-annual-income: ${CREDIT_CARD_CLASSIC_MIN_ANNUAL_INCOME}
+      default-credit-limit: ${CREDIT_CARD_CLASSIC_DEFAULT_LIMIT}
+    gold:
+      minimum-annual-income: ${CREDIT_CARD_GOLD_MIN_ANNUAL_INCOME}
+      default-credit-limit: ${CREDIT_CARD_GOLD_DEFAULT_LIMIT}
+    platinum:
+      minimum-annual-income: ${CREDIT_CARD_PLATINUM_MIN_ANNUAL_INCOME}
+      default-credit-limit: ${CREDIT_CARD_PLATINUM_DEFAULT_LIMIT}
 
 services:
   internal-api-key: ${INTERNAL_API_KEY}

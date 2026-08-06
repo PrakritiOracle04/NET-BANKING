@@ -280,22 +280,99 @@ DELETE /api/schedules/{scheduleId}
 
 ### Issue Card
 
-Admin only.
+Use this for the card product dropdown. The response includes debit and credit variants for each tier.
 
 ```http
-POST /api/cards
+GET /api/cards/products
+```
+
+Response `data` shape:
+
+```json
+[
+  {
+    "cardType": "DEBIT",
+    "code": "GOLD",
+    "label": "Gold Debit Card",
+    "minimumAnnualIncome": 300000,
+    "defaultDailyLimit": 25000,
+    "defaultCreditLimit": null
+  },
+  {
+    "cardType": "CREDIT",
+    "code": "GOLD",
+    "label": "Gold Credit Card",
+    "minimumAnnualIncome": 600000,
+    "defaultDailyLimit": 25000,
+    "defaultCreditLimit": 100000
+  }
+]
+```
+
+### Submit Card Application
+
+Customer route. The backend uses the logged-in user from the JWT, not a `customerUserId` from the body.
+
+```http
+POST /api/cards/applications
 ```
 
 ```json
 {
   "customerUserId": "72818704-7217-4f34-a4e9-4d786b9b32cc",
   "accountId": "bb7f8fcc-3c62-4d2b-a066-f7e4b86d0dbf",
-  "cardType": "DEBIT",
-  "dailyTransactionLimit": 25000
+  "cardType": "CREDIT",
+  "cardProduct": "GOLD",
+  "annualIncome": 700000,
+  "occupation": "Software Engineer",
+  "deliveryAddress": "Home address",
+  "requestedDailyLimit": 25000
 }
 ```
 
-Only one non-expired card can exist per account.
+`cardType` can be `DEBIT` or `CREDIT`. If omitted, the backend keeps old behavior and treats it as `DEBIT`.
+
+Only one pending application or non-expired card can exist per account per card type. So one debit card and one credit card may exist for the same account, but not two active credit cards.
+
+### My Card Applications
+
+```http
+GET /api/cards/applications
+GET /api/cards/applications/{applicationId}
+```
+
+### Admin Card Application Review
+
+Admin only.
+
+```http
+GET /api/cards/admin/applications?status=PENDING&page=0&size=50
+POST /api/cards/admin/applications/{applicationId}/approve
+POST /api/cards/admin/applications/{applicationId}/reject
+```
+
+Approve body:
+
+```json
+{
+  "approvedDailyLimit": 25000,
+  "notes": "Approved after review"
+}
+```
+
+Reject body:
+
+```json
+{
+  "reason": "Eligibility criteria not met"
+}
+```
+
+Approval creates an `INACTIVE` card. The customer then activates it with `POST /api/cards/{cardId}/activate`.
+
+For credit-card applications, approval also creates a credit-card account row using the configured product credit limit.
+
+Direct `POST /api/cards` is retired from the public/frontend contract.
 
 ### List Cards
 
@@ -317,6 +394,23 @@ GET /api/cards/{cardId}/status
 ```
 
 Card numbers are always masked as `************1234`.
+
+### Credit Card Account
+
+Customer route:
+
+```http
+GET /api/cards/credit-accounts
+GET /api/cards/{cardId}/credit-account
+```
+
+Admin filter:
+
+```http
+GET /api/cards/credit-accounts?customerUserId={userId}
+```
+
+The credit-card account response contains `creditLimit`, `availableCredit`, `outstandingBalance`, `billingCycleDay`, and `status`.
 
 ### Activate Card
 

@@ -3,6 +3,8 @@ package com.oracle.banking.card.dto;
 import com.oracle.banking.card.entity.BankCard;
 import com.oracle.banking.card.entity.CardStatus;
 import com.oracle.banking.card.entity.CardType;
+import com.oracle.banking.card.entity.CreditCardAccount;
+import com.oracle.banking.card.entity.CreditCardAccountStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +21,66 @@ public final class CardDtos {
             @NotNull CardType cardType,
             @NotNull @DecimalMin("0.01") BigDecimal dailyTransactionLimit
     ) {}
+
+    public record CardProductResponse(
+            CardType cardType,
+            CardProduct code,
+            String label,
+            BigDecimal minimumAnnualIncome,
+            BigDecimal defaultDailyLimit,
+            BigDecimal defaultCreditLimit
+    ) {}
+
+    public record CardApplicationRequest(
+            @NotBlank @Size(max = 36) String accountId,
+            CardType cardType,
+            @NotNull CardProduct cardProduct,
+            @NotNull @DecimalMin("0.00") BigDecimal annualIncome,
+            @Size(max = 120) String occupation,
+            @NotBlank @Size(max = 500) String deliveryAddress,
+            @DecimalMin("0.01") BigDecimal requestedDailyLimit
+    ) {}
+
+    public record CardApplicationApprovalRequest(
+            @DecimalMin("0.01") BigDecimal approvedDailyLimit,
+            @Size(max = 500) String notes
+    ) {}
+
+    public record CardApplicationRejectionRequest(
+            @NotBlank @Size(max = 500) String reason
+    ) {}
+
+    public record CardApplicationResponse(
+            String applicationId,
+            String customerUserId,
+            String accountId,
+            CardType cardType,
+            CardProduct cardProduct,
+            BigDecimal annualIncome,
+            String occupation,
+            String deliveryAddress,
+            BigDecimal requestedDailyLimit,
+            BigDecimal approvedDailyLimit,
+            BigDecimal approvedCreditLimit,
+            CardApplicationStatus status,
+            String rejectionReason,
+            String decisionNotes,
+            String issuedCardId,
+            String decidedByUserId,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant decidedAt
+    ) {
+        public static CardApplicationResponse from(CardApplication application) {
+            return new CardApplicationResponse(
+                    application.getApplicationId(), application.getCustomerUserId(), application.getAccountId(),
+                    application.getCardType(), application.getCardProduct(), application.getAnnualIncome(),
+                    application.getOccupation(), application.getDeliveryAddress(), application.getRequestedDailyLimit(),
+                    application.getApprovedDailyLimit(), application.getApprovedCreditLimit(), application.getStatus(), application.getRejectionReason(),
+                    application.getDecisionNotes(), application.getIssuedCardId(), application.getDecidedByUserId(),
+                    application.getCreatedAt(), application.getUpdatedAt(), application.getDecidedAt());
+        }
+    }
 
     public record CardBlockRequest(@Size(max = 240) String reason) {}
 
@@ -74,4 +136,35 @@ public final class CardDtos {
             BigDecimal availableBalance,
             boolean active
     ) {}
+
+    public record CreditCardAccountResponse(
+            String creditAccountId,
+            String cardId,
+            String customerUserId,
+            String linkedAccountId,
+            CardProduct cardProduct,
+            BigDecimal creditLimit,
+            BigDecimal availableCredit,
+            BigDecimal outstandingBalance,
+            int billingCycleDay,
+            CreditCardAccountStatus status,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        public static CreditCardAccountResponse from(CreditCardAccount account) {
+            return new CreditCardAccountResponse(
+                    account.getCreditAccountId(),
+                    account.getCardId(),
+                    account.getCustomerUserId(),
+                    account.getLinkedAccountId(),
+                    account.getCardProduct(),
+                    account.getCreditLimit(),
+                    account.getAvailableCredit(),
+                    account.getOutstandingBalance(),
+                    account.getBillingCycleDay(),
+                    account.getStatus(),
+                    account.getCreatedAt(),
+                    account.getUpdatedAt());
+        }
+    }
 }
