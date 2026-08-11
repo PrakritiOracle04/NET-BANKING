@@ -108,8 +108,6 @@ public class AccountService {
         account.setAccountType(request.accountType());
         account.setBranchIfsc(request.branchIfsc());
         account.setOpeningReference(request.openingReference());
-        account.setAvailableBalance(BigDecimal.ZERO);
-        account.setLedgerBalance(BigDecimal.ZERO);
         account.setPrimaryAccount(repository.countByCustomerUserId(request.customerUserId()) == 0);
         account.setStatus(AccountStatus.ACTIVE);
         account.setCreatedVia("WORKFLOW");

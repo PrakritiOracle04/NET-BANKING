@@ -12,6 +12,9 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
 
 @Entity
 @Table(
@@ -45,9 +48,13 @@ public class Account {
     private AccountStatus status;
 
     @Column(name = "AVAILABLE_BALANCE", nullable = false, precision = 19, scale = 2)
+    @ColumnDefault("100000")
+    @Generated(event = EventType.INSERT)
     private BigDecimal availableBalance;
 
     @Column(name = "LEDGER_BALANCE", nullable = false, precision = 19, scale = 2)
+    @ColumnDefault("100000")
+    @Generated(event = EventType.INSERT)
     private BigDecimal ledgerBalance;
 
     @Column(name = "IS_PRIMARY", nullable = false)
@@ -66,8 +73,6 @@ public class Account {
     void beforeCreate() {
         if (accountId == null) accountId = UUID.randomUUID().toString();
         if (status == null) status = AccountStatus.ACTIVE;
-        if (availableBalance == null) availableBalance = BigDecimal.ZERO;
-        if (ledgerBalance == null) ledgerBalance = availableBalance;
         if (createdVia == null) createdVia = "ADMIN";
         createdAt = Instant.now();
         updatedAt = createdAt;
