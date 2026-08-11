@@ -97,7 +97,8 @@ public class AccountService {
         if (existing != null) {
             if (!existing.getCustomerUserId().equals(request.customerUserId())
                     || existing.getAccountType() != request.accountType()
-                    || !existing.getBranchIfsc().equals(request.branchIfsc())) {
+                    || !existing.getBranchIfsc().equals(request.branchIfsc())
+                    || existing.getInitialDeposit().compareTo(request.initialDeposit()) != 0) {
                 throw new Duplicate("Opening reference was already used for another account request");
             }
             return AccountDetailsResponse.from(existing);
@@ -108,6 +109,9 @@ public class AccountService {
         account.setAccountType(request.accountType());
         account.setBranchIfsc(request.branchIfsc());
         account.setOpeningReference(request.openingReference());
+        account.setInitialDeposit(request.initialDeposit());
+        account.setAvailableBalance(request.initialDeposit());
+        account.setLedgerBalance(request.initialDeposit());
         account.setPrimaryAccount(repository.countByCustomerUserId(request.customerUserId()) == 0);
         account.setStatus(AccountStatus.ACTIVE);
         account.setCreatedVia("WORKFLOW");

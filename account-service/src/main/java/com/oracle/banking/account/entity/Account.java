@@ -12,9 +12,6 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import org.hibernate.annotations.ColumnDefault;
-import org.hibernate.annotations.Generated;
-import org.hibernate.generator.EventType;
 
 @Entity
 @Table(
@@ -47,14 +44,13 @@ public class Account {
     @Column(name = "STATUS", nullable = false, length = 20)
     private AccountStatus status;
 
+    @Column(name = "INITIAL_DEPOSIT", nullable = false, precision = 19, scale = 2)
+    private BigDecimal initialDeposit;
+
     @Column(name = "AVAILABLE_BALANCE", nullable = false, precision = 19, scale = 2)
-    @ColumnDefault("100000")
-    @Generated(event = EventType.INSERT)
     private BigDecimal availableBalance;
 
     @Column(name = "LEDGER_BALANCE", nullable = false, precision = 19, scale = 2)
-    @ColumnDefault("100000")
-    @Generated(event = EventType.INSERT)
     private BigDecimal ledgerBalance;
 
     @Column(name = "IS_PRIMARY", nullable = false)
@@ -97,6 +93,8 @@ public class Account {
     public void setOpeningReference(String openingReference) { this.openingReference = openingReference; }
     public AccountStatus getStatus() { return status; }
     public void setStatus(AccountStatus status) { this.status = status; }
+    public BigDecimal getInitialDeposit() { return initialDeposit; }
+    public void setInitialDeposit(BigDecimal initialDeposit) { this.initialDeposit = initialDeposit; }
     public BigDecimal getAvailableBalance() { return availableBalance; }
     public void setAvailableBalance(BigDecimal availableBalance) { this.availableBalance = availableBalance; }
     public BigDecimal getLedgerBalance() { return ledgerBalance; }

@@ -1,5 +1,6 @@
 -- Biller catalog, email template and account opening-balance updates.
 -- Oracle SQL / PL/SQL. This script is idempotent and can be rerun from DB Navigator.
+WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK;
 
 DECLARE
     PROCEDURE upsert_biller(
@@ -181,11 +182,49 @@ END;
 /
 
 ALTER TABLE ACCOUNTS MODIFY (
-    AVAILABLE_BALANCE DEFAULT 100000,
-    LEDGER_BALANCE DEFAULT 100000
+    AVAILABLE_BALANCE DEFAULT NULL,
+    LEDGER_BALANCE DEFAULT NULL
 );
 
--- The balance rule now uses column defaults; remove the earlier trigger if it exists.
+DECLARE
+    v_column_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_column_count
+    FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = 'ACCOUNTS' AND COLUMN_NAME = 'INITIAL_DEPOSIT';
+
+    IF v_column_count = 0 THEN
+        EXECUTE IMMEDIATE
+            'ALTER TABLE ACCOUNTS ADD INITIAL_DEPOSIT NUMBER(19,2)';
+    END IF;
+END;
+/
+
+-- Existing accounts predate this field, so retain them with a neutral historical value.
+-- New account creation always supplies a strictly positive amount through the validated API.
+UPDATE ACCOUNTS
+SET INITIAL_DEPOSIT = 0
+WHERE INITIAL_DEPOSIT IS NULL;
+
+ALTER TABLE ACCOUNTS MODIFY (
+    INITIAL_DEPOSIT DEFAULT NULL
+);
+
+DECLARE
+    v_nullable VARCHAR2(1);
+BEGIN
+    SELECT NULLABLE INTO v_nullable
+    FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = 'ACCOUNTS' AND COLUMN_NAME = 'INITIAL_DEPOSIT';
+
+    IF v_nullable = 'Y' THEN
+        EXECUTE IMMEDIATE
+            'ALTER TABLE ACCOUNTS MODIFY INITIAL_DEPOSIT NOT NULL';
+    END IF;
+END;
+/
+
+-- Remove the earlier fixed-balance trigger. New accounts now receive a mandatory initial deposit.
 BEGIN
     EXECUTE IMMEDIATE 'DROP TRIGGER TRG_ACCOUNTS_AVAILABLE_BALANCE';
 EXCEPTION
