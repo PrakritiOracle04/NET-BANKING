@@ -36,8 +36,7 @@ public final class WorkflowDtos {
             @NotBlank @Pattern(regexp = "^(SAVINGS|CURRENT|SALARY)$", message = "Invalid account type")
             String accountType,
             @NotBlank @Pattern(regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", message = "Invalid IFSC")
-            String branchIfsc,
-            @NotNull @DecimalMin(value = "0.01") BigDecimal initialDeposit
+            String branchIfsc
     ) {}
 
     public record OpenAccountResponse(
@@ -139,8 +138,7 @@ public final class WorkflowDtos {
             String customerUserId,
             String accountType,
             String branchIfsc,
-            String openingReference,
-            BigDecimal initialDeposit
+            String openingReference
     ) {}
 
     public record InternalOpenAccountResponse(

@@ -553,8 +553,7 @@ public class BankingWorkflowService {
                 WorkflowType.ACCOUNT_OPENING).orElse(null);
         if (existing != null) {
             if (!request.accountType().equals(existing.getAccountType())
-                    || !request.branchIfsc().equals(existing.getBranchIfsc())
-                    || existing.getAmount().compareTo(request.initialDeposit()) != 0) {
+                    || !request.branchIfsc().equals(existing.getBranchIfsc())) {
                 throw new Conflict("Idempotency key was already used with a different account-opening request");
             }
             if (existing.getStatus() == WorkflowStatus.COMPLETED) {
@@ -574,7 +573,7 @@ public class BankingWorkflowService {
                 reference("AOP"),
                 null,
                 null,
-                request.initialDeposit(),
+                BigDecimal.ZERO,
                 "Account opening");
         saga.accountOpeningRequested(request.accountType(), request.branchIfsc());
         return save(saga);
@@ -635,8 +634,7 @@ public class BankingWorkflowService {
                             userId,
                             request.accountType(),
                             validatedIfsc,
-                            openingReference,
-                            request.initialDeposit()))
+                            openingReference))
                     .retrieve()
                     .body(InternalOpenAccountResponse.class);
             if (response == null) {

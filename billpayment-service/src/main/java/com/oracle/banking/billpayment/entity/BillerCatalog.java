@@ -41,22 +41,6 @@ public class BillerCatalog {
     @Column(name = "UPDATED_AT", nullable = false)
     private Instant updatedAt;
 
-    public BillerCatalog() {}
-
-    public BillerCatalog(String billerCode, String billerName, BillerCategory category) {
-        updateCatalogDetails(billerName, category, BillerStatus.ACTIVE);
-        this.billerCode = billerCode;
-    }
-
-    public void updateCatalogDetails(
-            String billerName,
-            BillerCategory category,
-            BillerStatus status) {
-        this.billerName = billerName;
-        this.category = category;
-        this.status = status;
-    }
-
     @PrePersist
     void beforeCreate() {
         if (billerId == null) billerId = UUID.randomUUID().toString();

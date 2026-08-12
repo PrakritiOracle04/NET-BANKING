@@ -24,24 +24,4 @@ class WorkflowSagaTest {
         saga.prerequisitesValidated();
         assertThat(saga.hasMutation()).isTrue();
     }
-
-    @Test
-    void accountOpeningSagaRetainsTheInitialDepositForIdempotency() {
-        BigDecimal initialDeposit = new BigDecimal("25000.00");
-        WorkflowSaga saga = new WorkflowSaga(
-                "user-id",
-                "idempotency-key",
-                WorkflowType.ACCOUNT_OPENING,
-                "AOP-reference",
-                null,
-                null,
-                initialDeposit,
-                "Account opening");
-
-        saga.accountOpeningRequested("SAVINGS", "ORCL0000001");
-
-        assertThat(saga.getAmount()).isEqualByComparingTo(initialDeposit);
-        assertThat(saga.getAccountType()).isEqualTo("SAVINGS");
-        assertThat(saga.getBranchIfsc()).isEqualTo("ORCL0000001");
-    }
 }

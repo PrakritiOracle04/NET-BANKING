@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BillerCatalogRepository extends JpaRepository<BillerCatalog, String> {
     boolean existsByBillerCodeIgnoreCase(String billerCode);
-    Optional<BillerCatalog> findByBillerCodeIgnoreCase(String billerCode);
     boolean existsByBillerCodeIgnoreCaseAndBillerIdNot(String billerCode, String billerId);
     Optional<BillerCatalog> findByBillerIdAndStatus(String billerId, BillerStatus status);
     List<BillerCatalog> findByStatusOrderByBillerNameAsc(BillerStatus status);
