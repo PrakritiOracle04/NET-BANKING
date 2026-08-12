@@ -59,112 +59,137 @@ public class NotificationService {
                 "WELCOME",
                 "WELCOME",
                 "Welcome to Oracle Banking, {{customerName}}",
-                "<h2>Welcome, {{customerName}}</h2>"
-                        + "<p>Your Oracle Banking profile is ready.</p>",
-                "Welcome, {{customerName}}. Your Oracle Banking profile is ready.");
+                html("Welcome to Oracle Banking", "Hello {{customerName}},",
+                        "Your internet banking profile has been created successfully. You can now sign in, "
+                                + "complete your customer profile, open accounts and use the banking services available to you.",
+                        "For your security, never share your password, OTP or card credentials with anyone."),
+                "Hello {{customerName}}, your Oracle Banking profile has been created successfully. "
+                        + "You can now sign in and use the available banking services. Never share your password or OTP.");
         seedTemplate(
                 "LOGIN_ALERT",
                 "LOGIN_ALERT",
                 "New login to your Oracle Banking account",
-                "<h2>Login alert</h2>"
-                        + "<p>Hello {{customerName}}, "
-                        + "a login was detected at {{currentTime}}.</p>",
-                "Hello {{customerName}}, a login was detected at {{currentTime}}.");
+                html("New login detected", "Hello {{customerName}},",
+                        "A successful login to your Oracle Banking account was recorded at <strong>{{currentTime}}</strong>.",
+                        "If this was not you, reset your password immediately and contact support."),
+                "Hello {{customerName}}, a successful login was recorded at {{currentTime}}. "
+                        + "If this was not you, reset your password and contact support immediately.");
         seedTemplate(
                 "PASSWORD_RESET",
                 "PASSWORD_RESET",
                 "Reset your Oracle Banking password",
-                "<h2>Password reset</h2>"
-                        + "<p>Use this link: {{verificationLink}}</p>",
-                "Reset link: {{verificationLink}}");
+                html("Password reset requested", "We received a request to reset your Oracle Banking password.",
+                        "Use the secure link below to continue:<br><a href=\"{{verificationLink}}\">Reset my password</a>",
+                        "If you did not request this change, ignore this email and keep your credentials private."),
+                "We received a password reset request. Continue at {{verificationLink}}. "
+                        + "Ignore this message if you did not make the request.");
         seedTemplate(
                 "PASSWORD_RESET_OTP",
                 "PASSWORD_RESET",
                 "Your Oracle Banking password reset code",
-                "<h2>Password reset code</h2>"
-                        + "<p>Hello {{customerName}}, use this code to reset your password:</p>"
-                        + "<h1>{{otpCode}}</h1>"
-                        + "<p>This code expires in {{expiresInMinutes}} minutes.</p>",
+                html("Password reset code", "Hello {{customerName}},",
+                        "Enter the following one-time code to verify your password reset request:"
+                                + "<div style=\"font-size:30px;font-weight:700;letter-spacing:8px;margin:20px 0\">{{otpCode}}</div>",
+                        "This code expires in {{expiresInMinutes}} minutes. Do not share it with anyone. "
+                                + "If you did not request a reset, no action is required."),
                 "Hello {{customerName}}, your Oracle Banking password reset code is {{otpCode}}. "
                         + "It expires in {{expiresInMinutes}} minutes.");
         seedTemplate(
                 "PASSWORD_CHANGED",
                 "PASSWORD_RESET",
                 "Your Oracle Banking password was changed",
-                "<h2>Password changed</h2>"
-                        + "<p>Hello {{customerName}}, your password was changed at {{changedAt}}.</p>"
-                        + "<p>If this was not you, contact support immediately.</p>",
+                html("Password changed", "Hello {{customerName}},",
+                        "The password for your Oracle Banking account was changed successfully at <strong>{{changedAt}}</strong>.",
+                        "If you did not make this change, contact support immediately so your account can be secured."),
                 "Hello {{customerName}}, your password was changed at {{changedAt}}. "
                         + "If this was not you, contact support immediately.");
         seedTemplate(
                 "GENERIC_NOTIFICATION",
                 "GENERIC",
                 "Oracle Banking notification",
-                "<p>{{message}}</p>",
-                "{{message}}");
+                html("Oracle Banking notification", "Hello,", "{{message}}",
+                        "This is an automated service notification. Please sign in to Oracle Banking if action is required."),
+                "Oracle Banking notification: {{message}}");
         seedTemplate(
                 "LOAN_CREATED",
                 "LOAN",
                 "Your Oracle Banking loan {{loanNumber}} is active",
-                "<h2>Loan created</h2>"
-                        + "<p>Your loan {{loanNumber}} for {{principalAmount}} is now active.</p>"
-                        + "<p>EMI: {{emiAmount}} &middot; Maturity: {{maturityDate}}</p>",
+                html("Your loan is active", "Your loan account <strong>{{loanNumber}}</strong> has been created successfully.",
+                        "Principal amount: <strong>{{principalAmount}}</strong><br>"
+                                + "EMI amount: <strong>{{emiAmount}}</strong><br>"
+                                + "Maturity date: <strong>{{maturityDate}}</strong>",
+                        "Please maintain sufficient account balance before every EMI due date to avoid overdue charges."),
                 "Your loan {{loanNumber}} for {{principalAmount}} is active. "
                         + "EMI: {{emiAmount}}. Maturity: {{maturityDate}}.");
         seedTemplate(
                 "SCHEDULE_TRIGGERED",
                 "SCHEDULE",
                 "Scheduled payment started",
-                "<p>{{message}}</p>",
-                "{{message}}");
+                html("Scheduled payment started", "Your scheduled payment is now being processed.", "{{message}}",
+                        "You will receive another notification after processing completes."),
+                "Scheduled payment started. {{message}} You will be notified when processing completes.");
         seedTemplate(
                 "SCHEDULE_COMPLETED",
                 "SCHEDULE",
                 "Scheduled payment completed",
-                "<p>{{message}}</p>",
-                "{{message}}");
+                html("Scheduled payment completed", "Your scheduled payment was completed successfully.", "{{message}}",
+                        "Review the transaction in Oracle Banking if you need the final reference or account details."),
+                "Scheduled payment completed successfully. {{message}}");
         seedTemplate(
                 "SCHEDULE_FAILED",
                 "SCHEDULE",
                 "Scheduled payment failed",
-                "<p>{{message}}</p>",
-                "{{message}}");
+                html("Scheduled payment failed", "We could not complete your scheduled payment.", "{{message}}",
+                        "Check the payment details and available balance before retrying. No successful debit is recorded for a failed payment."),
+                "Scheduled payment failed. {{message}} Check the details and available balance before retrying.");
         seedTemplate(
                 "CARD_APPLICATION_RECEIVED",
                 "CARD",
                 "Card application received",
-                "<p>Your {{cardProduct}} {{cardType}} card application has been received.</p>",
-                "Your {{cardProduct}} {{cardType}} card application has been received.");
+                html("Card application received", "We have received your application for a {{cardProduct}} {{cardType}} card.",
+                        "The application is pending administrative review. We will notify you after a decision is recorded.",
+                        "Submitting an application does not mean that the card has already been issued."),
+                "We received your {{cardProduct}} {{cardType}} card application. It is pending review.");
         seedTemplate(
                 "CARD_APPLICATION_APPROVED",
                 "CARD",
                 "Card application approved",
-                "<p>Your {{cardProduct}} {{cardType}} card application has been approved.</p>",
-                "Your {{cardProduct}} {{cardType}} card application has been approved.");
+                html("Card application approved", "Your {{cardProduct}} {{cardType}} card application has been approved.",
+                        "Card issuance will now proceed using the approved application details.",
+                        "You can review the card status and available controls after the card appears in Oracle Banking."),
+                "Your {{cardProduct}} {{cardType}} card application has been approved. Card issuance will now proceed.");
         seedTemplate(
                 "CARD_APPLICATION_REJECTED",
                 "CARD",
                 "Card application update",
-                "<p>Your card application has been reviewed. Status: rejected.</p>",
-                "Your card application has been reviewed. Status: rejected.");
+                html("Card application update", "Your card application has been reviewed and was not approved.",
+                        "No card has been issued for this application.",
+                        "Review your application details before submitting a new request or contact support if you need clarification."),
+                "Your card application was reviewed and not approved. No card has been issued.");
         seedTemplate(
                 "LOAN_APPLICATION_RECEIVED",
                 "LOAN",
                 "Loan application received",
-                "<p>Your {{loanType}} loan application has been received.</p>",
-                "Your {{loanType}} loan application has been received.");
+                html("Loan application received", "We have received your {{loanType}} loan application.",
+                        "The submitted financial and eligibility information is pending administrative review.",
+                        "We will notify you when the application is approved or rejected. No loan account exists until approval."),
+                "We received your {{loanType}} loan application. It is pending review and no loan is active yet.");
         seedTemplate(
                 "LOAN_APPLICATION_APPROVED",
                 "LOAN",
                 "Loan application approved",
-                "<p>Your {{loanType}} loan application has been approved.</p>",
-                "Your {{loanType}} loan application has been approved.");
+                html("Loan application approved", "Your {{loanType}} loan application has been approved.",
+                        "Loan creation and repayment scheduling will proceed using the approved application terms.",
+                        "Review the final loan account, EMI and maturity details in Oracle Banking once processing completes."),
+                "Your {{loanType}} loan application has been approved. Review the final loan terms when processing completes.");
         seedTemplate(
                 "LOAN_APPLICATION_REJECTED",
                 "LOAN",
                 "Loan application update",
-                "<p>Your loan application has been reviewed. Status: rejected.</p>",
-                "Your loan application has been reviewed. Status: rejected.");
+                html("Loan application update", "Your loan application has been reviewed and was not approved.",
+                        "No loan account or repayment schedule has been created for this application.",
+                        "You may review your information before applying again or contact support for assistance."),
+                "Your loan application was reviewed and not approved. No loan account was created.");
     }
 
     private void seedTemplate(
@@ -173,14 +198,21 @@ public class NotificationService {
             String subject,
             String htmlBody,
             String plainBody) {
-        if (templates.findByNameAndActiveTrue(name).isEmpty()) {
-            templates.save(new EmailTemplate(
-                    name,
-                    type,
-                    subject,
-                    htmlBody,
-                    plainBody));
-        }
+        EmailTemplate template = templates.findByName(name)
+                .orElseGet(() -> new EmailTemplate(name, type, subject, htmlBody, plainBody));
+        template.applySeedContent(type, subject, htmlBody, plainBody);
+        templates.save(template);
+    }
+
+    private static String html(String heading, String introduction, String details, String closing) {
+        return "<div style=\"font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#1f2937\">"
+                + "<div style=\"background:#7f1d1d;color:#ffffff;padding:18px 24px\">"
+                + "<strong style=\"font-size:20px\">Oracle Banking</strong></div>"
+                + "<div style=\"padding:24px;border:1px solid #e5e7eb\">"
+                + "<h2 style=\"margin-top:0\">" + heading + "</h2>"
+                + "<p>" + introduction + "</p><p>" + details + "</p><p>" + closing + "</p>"
+                + "<p style=\"font-size:12px;color:#6b7280;margin-top:28px\">"
+                + "This is an automated message from Oracle Banking. Please do not reply.</p></div></div>";
     }
 
     @Transactional

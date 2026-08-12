@@ -165,13 +165,14 @@ Valid states are `PENDING`, `VERIFIED`, and `REJECTED`. A rejection should inclu
 ```json
 {
   "accountType": "SAVINGS",
-  "branchIfsc": "ORCL0000001"
+  "branchIfsc": "ORCL0000001",
+  "initialDeposit": 25000.00
 }
 ```
 
-Workflow verifies that the profile is complete, KYC is `VERIFIED`, and the IFSC exists. It then calls Account's internal opening route. Account generates a UUID string ID and unique 12-digit account number, initializes both balances to zero, and marks only the customer's first account as primary. Types are `SAVINGS`, `CURRENT`, and `SALARY`.
+Workflow verifies that the profile is complete, KYC is `VERIFIED`, the IFSC exists, and `initialDeposit` is at least `0.01`. It then calls Account's internal opening route. Account generates a UUID string ID and unique 12-digit account number, stores the initial deposit, uses it for both available and ledger balances, and marks only the customer's first account as primary. Types are `SAVINGS`, `CURRENT`, and `SALARY`.
 
-A replay with the same key and identical body returns the original account. Reusing that key with a different body returns `409 Conflict`.
+A replay with the same key and identical body returns the original account. Reusing that key with a different account type, IFSC, or initial deposit returns `409 Conflict`. The opening amount establishes the account's initial balance and is not recorded as a separate deposit transaction.
 
 ## Public API reference
 
@@ -250,7 +251,7 @@ Every banking workflow request requires a client-generated `Idempotency-Key`:
 
 | Method and route | Purpose | Body |
 | --- | --- | --- |
-| `POST /api/banking/accounts/open` | Validate onboarding and open account | `accountType`, `branchIfsc` |
+| `POST /api/banking/accounts/open` | Validate onboarding and open account | `accountType`, `branchIfsc`, `initialDeposit` |
 | `POST /api/banking/deposit` | Credit owned active account and record transaction | `accountId`, `amount`, optional `description` |
 | `POST /api/banking/withdraw` | Validate funds, debit, and record transaction | `accountId`, `amount`, optional `description` |
 | `POST /api/banking/transfer` | Verify beneficiary, debit source, credit destination, record both sides | `sourceAccountId`, `destinationAccountNumber`, `amount`, optional `description` |
@@ -458,7 +459,7 @@ Admin is read-only and owns no database tables. Dashboard failures are reported 
 | Auth | 2FA | status and verify routes | Enforce TOTP before issuing JWT |
 | Workflow | Customer | `GET /internal/customers/{userId}/onboarding-status` | Profile/KYC prerequisite |
 | Workflow | Branch | `GET /internal/branches/ifsc/{ifsc}` | Validate opening branch |
-| Workflow | Account | `POST /internal/accounts/open` | Idempotent account creation |
+| Workflow | Account | `POST /internal/accounts/open` | Idempotent account creation using the requested initial deposit |
 | Beneficiary | Account | account-number validation | Validate destination and IFSC |
 | Workflow | Account | validation, debit, credit, reversal routes | Apply/reverse idempotent movements |
 | Workflow | Beneficiary | `POST /internal/beneficiaries/verify-transfer` | Require verified destination |

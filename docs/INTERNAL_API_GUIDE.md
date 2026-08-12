@@ -126,7 +126,8 @@ Idempotency-Key: <unique-key>
 
 {
   "accountType": "SAVINGS",
-  "branchIfsc": "ORCL0000001"
+  "branchIfsc": "ORCL0000001",
+  "initialDeposit": 25000.00
 }
 ```
 
@@ -147,16 +148,18 @@ sequenceDiagram
     CU-->>W: Profile complete and KYC VERIFIED
     W->>B: GET /internal/branches/ifsc/{ifsc}
     B-->>W: Valid branch
-    W->>A: POST /internal/accounts/open
+    W->>A: POST /internal/accounts/open with initialDeposit
     Note over W,A: X-Internal-Api-Key
     A->>A: Generate ID and account number
-    A->>A: Initialize balances to zero
+    A->>A: Store initialDeposit as both balances
     A-->>W: Created account
     W-->>G: 201 Created
     G-->>C: Account-opening response
 ```
 
 The client requests the outcome. Workflow controls how that outcome is produced.
+
+`initialDeposit` is mandatory and positive. Workflow includes it in Saga idempotency validation and forwards it to Account. Account stores the original amount and initializes both available and ledger balances from it. This is an opening balance, not a later credit operation, so it does not create a separate deposit transaction.
 
 ## JWT versus the internal API key
 

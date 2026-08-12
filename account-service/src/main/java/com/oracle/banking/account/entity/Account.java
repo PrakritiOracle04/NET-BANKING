@@ -44,6 +44,9 @@ public class Account {
     @Column(name = "STATUS", nullable = false, length = 20)
     private AccountStatus status;
 
+    @Column(name = "INITIAL_DEPOSIT", nullable = false, precision = 19, scale = 2)
+    private BigDecimal initialDeposit;
+
     @Column(name = "AVAILABLE_BALANCE", nullable = false, precision = 19, scale = 2)
     private BigDecimal availableBalance;
 
@@ -66,8 +69,6 @@ public class Account {
     void beforeCreate() {
         if (accountId == null) accountId = UUID.randomUUID().toString();
         if (status == null) status = AccountStatus.ACTIVE;
-        if (availableBalance == null) availableBalance = BigDecimal.ZERO;
-        if (ledgerBalance == null) ledgerBalance = availableBalance;
         if (createdVia == null) createdVia = "ADMIN";
         createdAt = Instant.now();
         updatedAt = createdAt;
@@ -92,6 +93,8 @@ public class Account {
     public void setOpeningReference(String openingReference) { this.openingReference = openingReference; }
     public AccountStatus getStatus() { return status; }
     public void setStatus(AccountStatus status) { this.status = status; }
+    public BigDecimal getInitialDeposit() { return initialDeposit; }
+    public void setInitialDeposit(BigDecimal initialDeposit) { this.initialDeposit = initialDeposit; }
     public BigDecimal getAvailableBalance() { return availableBalance; }
     public void setAvailableBalance(BigDecimal availableBalance) { this.availableBalance = availableBalance; }
     public BigDecimal getLedgerBalance() { return ledgerBalance; }

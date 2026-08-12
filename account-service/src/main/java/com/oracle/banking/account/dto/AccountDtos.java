@@ -21,7 +21,8 @@ public final class AccountDtos {
             @NotBlank @Size(max = 36) String customerUserId,
             @NotNull AccountType accountType,
             @NotBlank @Pattern(regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", message = "Invalid IFSC") String branchIfsc,
-            @NotBlank @Size(max = 80) String openingReference
+            @NotBlank @Size(max = 80) String openingReference,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal initialDeposit
     ) {}
 
     public record UpdateAccountStatusRequest(@NotNull AccountStatus status) {}
