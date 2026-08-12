@@ -913,18 +913,15 @@ Idempotency-Key: <crypto.randomUUID()>
 ```json
 {
   "accountType": "SAVINGS",
-  "branchIfsc": "ORCL0000123",
-  "initialDeposit": 25000.00
+  "branchIfsc": "ORCL0000123"
 }
 ```
 
-`initialDeposit` is mandatory and must be at least `0.01`. It becomes both the available balance and ledger balance of the newly opened account. It is part of the idempotent request, so retrying with the same `Idempotency-Key` but a different deposit returns `409 Conflict`.
-
-Prerequisites: completed customer profile, `VERIFIED` KYC, eligible onboarding status, and a valid branch IFSC. The server generates account ID and account number. The first account becomes primary. The opening amount is stored on the account as its initial deposit; it is not recorded as a separate post-opening deposit transaction.
+Prerequisites: completed customer profile, `VERIFIED` KYC, eligible onboarding status, and a valid branch IFSC. The server generates account ID and account number. The first account becomes primary.
 
 `data`: `referenceNumber`, `accountId`, `accountNumber`, `accountType`, `branchIfsc`, `status`, `primaryAccount`.
 
-Expected errors: `400` missing, zero, or negative `initialDeposit`; `409` incomplete profile/KYC/ineligible or idempotency conflict; `503` downstream unavailable/compensation pending.
+Expected domain errors: `409` incomplete profile/KYC/ineligible or idempotency conflict; `503` downstream unavailable/compensation pending.
 
 ### 13.2 Transfer
 

@@ -48,7 +48,7 @@ Idempotency-Key: <unique-client-generated-value>
 | `POST /api/banking/deposit` | Account credit -> transaction record |
 | `POST /api/banking/withdraw` | Account debit -> transaction record |
 | `POST /api/banking/transfer` | Validate source -> validate destination -> validate beneficiary -> debit source -> credit destination -> record debit transaction -> record credit transaction |
-| `POST /api/banking/accounts/open` | Validate profile/KYC -> validate branch -> validate initial deposit -> idempotently create the funded account |
+| `POST /api/banking/accounts/open` | Validate profile/KYC -> validate branch -> idempotently create account |
 | `POST /api/banking/bill-payments` | Validate account/biller -> create pending payment -> debit account -> record transaction -> complete payment |
 
 The gateway merely forwards `/api/banking/**` to Workflow Service. It does not understand balance updates, rollbacks, or Saga state.
