@@ -1,5 +1,5 @@
 
-# Internet Banking Platfor
+# Internet Banking Platform
 
 <img width="2043" height="1377" alt="image" src="https://github.com/user-attachments/assets/068ecff7-df3d-4174-924d-29154ded0596" />
 
