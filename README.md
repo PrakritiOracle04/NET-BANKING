@@ -1,4 +1,8 @@
-# Internet Banking Platform
+
+# Internet Banking Platfor
+
+<img width="2043" height="1377" alt="image" src="https://github.com/user-attachments/assets/068ecff7-df3d-4174-924d-29154ded0596" />
+
 
 This is a Spring Boot 3 / Java 17 microservice foundation for Internet Banking. The repository root is the Maven aggregator; each service below is independently runnable.
 
